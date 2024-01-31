@@ -13,8 +13,11 @@ export default function MyApp() {
   const [webCamState, setButtonState] = useState(false);
   const [frameCapture, setFrameCapture] = useState(false);
   const [imageSrc, setImageSrc] = useState(null);
+  const webcamRef = useRef(null);
 
-  const handleOnCapture = (capturedImageSrc) => {
+
+  const handleOnCapture = () => {
+    const capturedImageSrc = webcamRef.current.getScreenshot();
     setImageSrc(capturedImageSrc);
   }
 
@@ -23,8 +26,8 @@ export default function MyApp() {
       <h1>Welcome to my app</h1>
       <MyButton class="webcam" onClick={() => {setButtonState(!webCamState)}} />
       <br />
-      <MyButton class="frame" onClick={() => {setFrameCapture(!frameCapture)}} />
-      {webCamState && <RenderWebcam onCapture={handleOnCapture}/>}
+      <MyButton class="frame" onClick={() => {setFrameCapture(!frameCapture); handleOnCapture()}} />
+      {webCamState && <RenderWebcam webcamRef={webcamRef} />}
       <br />
       {frameCapture && <p>Frame </p>}
       <br />
@@ -42,13 +45,7 @@ function MyButton(props) {
   );
 }
 
-function RenderWebcam({ onCapture }) {
-  const webcamRef = useRef(null);
-
-  const handleOnCapture = () => {
-    const capturedImageSrc = webcamRef.current.getScreenshot();
-    onCapture(capturedImageSrc);
-  };
+function RenderWebcam(props) {
 
   return (
     <div>
@@ -56,9 +53,9 @@ function RenderWebcam({ onCapture }) {
         audio={false}
         screenshotFormat="image/jpeg"
         videoConstraints={videoConstraints}
-        ref={webcamRef}
+        ref={props.webcamRef}
       />
-      <button onClick={handleOnCapture}>Capture</button>
+      {/* <button onClick={handleOnCapture}>Capture</button> */}
     </div>
   );
 }
