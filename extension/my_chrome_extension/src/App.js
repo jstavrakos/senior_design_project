@@ -1,7 +1,6 @@
 import React, { useState, useRef } from 'react';
 import './App.css';
 import Webcam from "react-webcam";
-import getScreenshot from "react-webcam";
 
 const videoConstraints = {
   width: 1280,
