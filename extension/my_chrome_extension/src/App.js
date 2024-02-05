@@ -3,8 +3,8 @@ import './App.css';
 import Webcam from "react-webcam";
 
 const videoConstraints = {
-  width: 1280,
-  height: 720,
+  width: 600,
+  height: 600,
   facingMode: "user"
 };
 
@@ -25,12 +25,19 @@ export default function MyApp() {
       <h1>Welcome to my app</h1>
       <MyButton class="webcam" onClick={() => {setButtonState(!webCamState)}} />
       <br />
-      <MyButton class="frame" onClick={() => {setFrameCapture(!frameCapture); handleOnCapture()}} />
+      <MyButton class="frame" onClick={() => {
+        if(webCamState === true){
+          setFrameCapture(!frameCapture); 
+          handleOnCapture();
+        }
+        else{
+          setFrameCapture(false);
+        }}} />
       {webCamState && <RenderWebcam webcamRef={webcamRef} />}
       <br />
       {frameCapture && <p>Frame </p>}
       <br />
-      {webCamState && frameCapture && <img src={imageSrc} alt="Captured" />}
+      {frameCapture && <img src={imageSrc} alt="Captured" />}
     </div>
     );
   };
@@ -54,7 +61,6 @@ function RenderWebcam(props) {
         videoConstraints={videoConstraints}
         ref={props.webcamRef}
       />
-      {/* <button onClick={handleOnCapture}>Capture</button> */}
     </div>
   );
 }

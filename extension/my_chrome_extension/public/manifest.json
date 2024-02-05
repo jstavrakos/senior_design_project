@@ -1,25 +1,19 @@
 {
-  "short_name": "React App",
-  "name": "Create React App Sample",
-  "icons": [
-    {
-      "src": "favicon.ico",
-      "sizes": "64x64 32x32 24x24 16x16",
-      "type": "image/x-icon"
-    },
-    {
-      "src": "logo192.png",
-      "type": "image/png",
-      "sizes": "192x192"
-    },
-    {
-      "src": "logo512.png",
-      "type": "image/png",
-      "sizes": "512x512"
-    }
-  ],
-  "start_url": ".",
-  "display": "standalone",
-  "theme_color": "#000000",
-  "background_color": "#ffffff"
+  "manifest_version": 3,
+  "name" : "Manus hand detection",
+  "version": "1.0",
+  "description": "This extension uses a ML model to detect hand gestures and control the browser",
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Manus hand detection"
+  },
+  "icons": {
+    "16": "hand.png",
+    "48": "hand.png",
+    "128": "hand.png"
+  },
+  "permissions": [
+    "activeTab",
+    "scripting"
+  ]
 }
