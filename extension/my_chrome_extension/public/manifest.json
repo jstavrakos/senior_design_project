@@ -1,0 +1,19 @@
+{
+  "manifest_version": 3,
+  "name" : "Manus hand detection",
+  "version": "1.0",
+  "description": "This extension uses a ML model to detect hand gestures and control the browser",
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Manus hand detection"
+  },
+  "icons": {
+    "16": "hand.png",
+    "48": "hand.png",
+    "128": "hand.png"
+  },
+  "permissions": [
+    "activeTab",
+    "scripting"
+  ]
+}
