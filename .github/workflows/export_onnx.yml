@@ -1,0 +1,26 @@
+name: export_onnx_model
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+    export-onnx:
+        name: export model to ONNX format
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout Code
+              uses: actions/checkout@v3
+
+            - name: Setup Python
+              uses: actions/setup-python@v4
+              with:
+                python-version: '3.11'
+            
+            - name: Run Python Script
+              run: |
+                python -m pip install torch torchvision
+                python -m pip install onnxscript
+                python -m pip install onnx
+                python senior_design_project/convert_to_onnx.py
