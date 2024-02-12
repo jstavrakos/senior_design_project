@@ -1,0 +1,18 @@
+{
+  "manifest_version": 3, 
+  "name": "TODO test extension", 
+  "description": "TODO testing", 
+  "version": "0.1", 
+  "background": {
+    "service_worker": "scripts/service_worker.js"
+  }, 
+  "action": {
+    "default_icon": "assets/temp_logo.png", 
+    "default_title": "run an alert"
+  }, 
+  "permissions": [
+    "scripting", 
+    "activeTab", 
+    "tabs"
+  ]
+}
