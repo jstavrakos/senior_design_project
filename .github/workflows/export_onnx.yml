@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - jack
 
 jobs:
     export-onnx:
@@ -18,9 +19,11 @@ jobs:
               with:
                 python-version: '3.11'
             
-            - name: Run Python Script
+            - name: Install Packages
               run: |
                 python -m pip install torch torchvision
                 python -m pip install onnxscript
                 python -m pip install onnx
-                python senior_design_project/convert_to_onnx.py
+
+            - name: Run Python Script
+              run: python senior_design_project/convert_to_onnx.py
