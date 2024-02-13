@@ -26,4 +26,4 @@ jobs:
                 python -m pip install onnx
 
             - name: Run Python Script
-              run: python senior_design_project/convert_to_onnx.py
+              run: python convert_to_onnx.py
