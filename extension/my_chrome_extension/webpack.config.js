@@ -4,26 +4,19 @@ const HtmlWebpackPlugin = require('html-webpack-plugin');
 const CopyPlugin = require('copy-webpack-plugin');
 
 module.exports = {
-    entry: './src/index.js',
+    entry: './src/index.tsx',
     output: {
         path: path.resolve(__dirname, 'dist'),
         filename: '[name].js',
+        chunkFilename: '[name].[chunkhash].js',
     },
-    mode: 'production',
+    devtool: 'inline-source-map',
     module: {
         rules: [
             {
-                test: /\.js|jsx$/,
+                test: /\.(js|jsx|tsx)$/,  // Include .tsx for TypeScript files
                 exclude: /node_modules/,
-                use: {
-                    loader: 'babel-loader',
-                    options: {
-                        presets: [
-                            '@babel/preset-env',
-                            ['@babel/preset-react', { runtime: 'automatic' }]
-                        ]
-                    }
-                }
+                use: 'ts-loader'
             },
             {
                 test: /\.css$/i,
@@ -43,6 +36,9 @@ module.exports = {
 
         ],
     },
+    resolve: {
+        extensions: ['.tsx', '.ts', '.js'],
+    },
     plugins: [
         new MiniCssExtractPlugin({
             filename: '[name].css',
@@ -53,9 +49,6 @@ module.exports = {
         }),
         new CopyPlugin({
             patterns: [
-                // { from: 'public/manifest.json', to: '[name][ext]' },
-                // { from: 'public/*.png', to: '[name][ext]' },
-                // { from :'public/*.jpg', to: '[name][ext]'}
                 { 
                     from: 'public',
                 },
