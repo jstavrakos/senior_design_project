@@ -1,5 +1,9 @@
 import React, { useState, useRef, useEffect, RefObject, createRef } from 'react';
 import Webcam from "react-webcam";
+import * as Jimp from 'jimp'
+// use ES6 style import syntax (recommended)
+import * as ort from 'onnxruntime-web';
+import { Tensor } from 'onnxruntime-web';
 
 // Interface for video constraints with type safety
 interface VideoConstraints {
@@ -15,8 +19,8 @@ enum FacingMode {
 }
 
 const videoConstraints: VideoConstraints = {
-  width: 600,
-  height: 600,
+  width: 150,
+  height: 150,
   facingMode: FacingMode.USER,
 }
 
@@ -25,30 +29,66 @@ export default function App() {
   const [frameCapture, setFrameCapture] = useState(false);
   const [imageSrc, setImageSrc] = useState<string | null>(null);
   const webcamRef = createRef<Webcam>();
+  const session = ort.InferenceSession.create('./mvp_model.onnx');
 
-  useEffect(() => {
-    // Request permission to use the webcam
-    chrome.permissions.request({ permissions: ['videoCapture'] }, (granted) => {
-      if (granted) {
-        // Permission granted, access the webcam
-        navigator.mediaDevices
-          .getUserMedia({ video: true, audio: false })
-          .catch((error) => {
-            console.error('Error accessing webcam:', error);
-            // Add appropriate error handling or user feedback here
-          });
-      } else {
-        // Permission denied, handle accordingly
-        console.error('Permission denied to access webcam');
-        // Add appropriate error handling or user feedback here
-      }
-    });
-  }, []); // Empty dependency array to run effect only once
+  // TODO - Permissions for the webcam don't work on initial load of the package
+  // useEffect(() => {
+  //   // Request permission to use the webcam
+  //   chrome.permissions.request({ permissions: ['videoCapture'] }, (granted) => {
+  //     if (granted) {
+  //       // Permission granted, access the webcam
+  //       navigator.mediaDevices
+  //         .getUserMedia({ video: true, audio: false })
+  //         .catch((error) => {
+  //           console.error('Error accessing webcam:', error);
+  //           // Add appropriate error handling or user feedback here
+  //         });
+  //     } else {
+  //       // Permission denied, handle accordingly
+  //       console.error('Permission denied to access webcam');
+  //       // Add appropriate error handling or user feedback here
+  //     }
+  //   });
+  // }, []); // Empty dependency array to run effect only once
 
   const handleOnCapture = () => {
     if (webcamRef.current) {
-      const capturedImageSrc = webcamRef.current.getScreenshot();
-      setImageSrc(capturedImageSrc);
+      const capturedImageSrc = webcamRef.current.getScreenshot({width: 150, height: 150});
+
+      // Convert base64 image to grayscale
+      const canvas = document.createElement('canvas');
+      const context = canvas.getContext('2d');
+      const image = new Image();
+      if (capturedImageSrc != null){
+        image.src = capturedImageSrc;
+        console.log(canvas.toDataURL());
+        
+        image.onload = () => {
+          if (context) {
+            canvas.width = image.width;
+            canvas.height = image.height;
+            context.filter = 'grayscale(100%)';
+            context.drawImage(image, 0, 0);
+            
+            setImageSrc(canvas.toDataURL());
+          }
+        };
+
+        // Convert base64 image to tensor
+        Jimp.read(capturedImageSrc, (err, image) => {
+          if (err) {
+            console.error('Error reading image:', err);
+            // Add appropriate error handling or user feedback here
+          } else {
+            const inputTensor = imageDataToTensor(image, [1, 3, 150, 150]);
+            session.then((session) => {
+              const inputName = session.inputNames[0]; // assuming the model has at least one input
+              const outputTensor = session.run({ [inputName]: inputTensor });
+              console.log(outputTensor);
+            });
+          }
+        });
+      }
     } else {
       console.error('Webcam reference not available');
       // Add appropriate error handling or user feedback here
@@ -64,7 +104,7 @@ export default function App() {
       </button>
       <br />
       <button 
-      className="bg-red-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+      className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
       onClick={() => {
         if (webCamState) {
           setFrameCapture(!frameCapture);
@@ -90,6 +130,34 @@ export default function App() {
     </div>
   );
 };
+
+function imageDataToTensor(image: Jimp, dims: number[]): Tensor {
+  // 1. Get buffer data from image and create R, G, and B arrays.
+  var imageBufferData = image.bitmap.data;
+  const [redArray, greenArray, blueArray] = new Array(new Array<number>(), new Array<number>(), new Array<number>());
+
+  // 2. Loop through the image buffer and extract the R, G, and B channels
+  for (let i = 0; i < imageBufferData.length; i += 4) {
+    redArray.push(imageBufferData[i]);
+    greenArray.push(imageBufferData[i + 1]);
+    blueArray.push(imageBufferData[i + 2]);
+    // skip data[i + 3] to filter out the alpha channel
+  }
+
+  // 3. Concatenate RGB to transpose [224, 224, 3] -> [3, 224, 224] to a number array
+  const transposedData = redArray.concat(greenArray).concat(blueArray);
+
+  // 4. convert to float32
+  let i, l = transposedData.length; // length, we need this for the loop
+  // create the Float32Array size 3 * 224 * 224 for these dimensions output
+  const float32Data = new Float32Array(dims[1] * dims[2] * dims[3]);
+  for (i = 0; i < l; i++) {
+    float32Data[i] = transposedData[i] / 255.0; // convert to float
+  }
+  // 5. create the tensor object from onnxruntime-web.
+  const inputTensor = new Tensor("float32", float32Data, dims);
+  return inputTensor;
+}
 
 function changeTabLeft() {
   chrome.tabs.query({ currentWindow: true }, (tabs) => {
@@ -120,6 +188,8 @@ function RenderWebcam(props: { webcamRef: RefObject<Webcam> }) {
     <div>
       <Webcam
         audio={false}
+        minScreenshotHeight={150}
+        minScreenshotWidth={150}
         screenshotFormat="image/jpeg"
         videoConstraints={videoConstraints}
         ref={props.webcamRef}
