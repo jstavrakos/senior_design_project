@@ -6,7 +6,7 @@ const CopyPlugin = require('copy-webpack-plugin');
 module.exports = {
     entry: {
         index: './src/index.tsx',
-        options: './src/options.js',
+        // options: './src/options.js',
     },
     output: {
         path: path.resolve(__dirname, 'dist'),
@@ -48,16 +48,15 @@ module.exports = {
             template: './public/index.html',
             filename: 'popup.html',
         }),
-        new HtmlWebpackPlugin({
-            template: './public/options.html', // Path to your options.html template
-            filename: 'options.html', // Output filename for options page
-        }),
+        // new HtmlWebpackPlugin({
+        //     template: './public/options.html', // Path to your options.html template
+        //     filename: 'options.html', // Output filename for options page
+        // }),
         new CopyPlugin({
             patterns: [
-                { 
-                    from: './public/hand.png', to: 'hand.png',
-                    from: './public/manifest.json', to: 'manifest.json',
-                },
+                {from: './public/hand.png', to: 'hand.png'},
+                {from: './public/manifest.json', to: 'manifest.json'},
+                {from: './src/mvp_model.onnx', to: 'mvp_model.onnx'},
             ],
         }),
     ],
