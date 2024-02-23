@@ -15,6 +15,5 @@
   "permissions": [
     "activeTab",
     "scripting"
-  ],
-  "options_page": "options.html"
+  ]
 }

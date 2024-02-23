@@ -57,6 +57,7 @@ module.exports = {
                 {from: './public/hand.png', to: 'hand.png'},
                 {from: './public/manifest.json', to: 'manifest.json'},
                 {from: './src/mvp_model.onnx', to: 'mvp_model.onnx'},
+                {from: './node_modules/onnxruntime-web/dist/ort-wasm-simd.wasm', to: '[name][ext]'}
             ],
         }),
     ],

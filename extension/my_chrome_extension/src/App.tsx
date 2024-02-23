@@ -61,33 +61,27 @@ export default function App() {
       const image = new Image();
       if (capturedImageSrc != null){
         image.src = capturedImageSrc;
-        console.log(canvas.toDataURL());
         
-        image.onload = () => {
+        image.onload = async () => {
           if (context) {
             canvas.width = image.width;
             canvas.height = image.height;
             context.filter = 'grayscale(100%)';
             context.drawImage(image, 0, 0);
-            
+            console.log(canvas.toDataURL());
             setImageSrc(canvas.toDataURL());
+            
+            // Convert base64 image to tensor
+            const [redArray, greenArray, blueArray] = new Array(new Array<number>(), new Array<number>(), new Array<number>());
+            const imageData = context.getImageData(0, 0, 150, 150);
+            const tensor = imageDataToTensor(imageData, [1, 3, 150, 150]);
+            const input = { 'input.1': tensor };
+            const output = await (await (session)).run(input);
+            console.log(output);
           }
         };
 
-        // Convert base64 image to tensor
-        Jimp.read(capturedImageSrc, (err, image) => {
-          if (err) {
-            console.error('Error reading image:', err);
-            // Add appropriate error handling or user feedback here
-          } else {
-            const inputTensor = imageDataToTensor(image, [1, 3, 150, 150]);
-            session.then((session) => {
-              const inputName = session.inputNames[0]; // assuming the model has at least one input
-              const outputTensor = session.run({ [inputName]: inputTensor });
-              console.log(outputTensor);
-            });
-          }
-        });
+
       }
     } else {
       console.error('Webcam reference not available');
@@ -131,9 +125,9 @@ export default function App() {
   );
 };
 
-function imageDataToTensor(image: Jimp, dims: number[]): Tensor {
+function imageDataToTensor(image: ImageData, dims: number[]): Tensor {
   // 1. Get buffer data from image and create R, G, and B arrays.
-  var imageBufferData = image.bitmap.data;
+  var imageBufferData = image.data;
   const [redArray, greenArray, blueArray] = new Array(new Array<number>(), new Array<number>(), new Array<number>());
 
   // 2. Loop through the image buffer and extract the R, G, and B channels
