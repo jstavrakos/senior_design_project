@@ -17,7 +17,8 @@
   },
   "scripts": {
     "build": "webpack --config webpack.config.js --mode production",
-    "dev": "webpack --watch --config webpack.config.js --mode development"
+    "dev": "webpack --watch --config webpack.config.js --mode development",
+    "single-build": "node ./src/single-build.mjs"
   },
   "eslintConfig": {
     "extends": [
@@ -41,6 +42,7 @@
     "@babel/core": "^7.23.9",
     "@babel/preset-env": "^7.23.9",
     "@babel/preset-react": "^7.23.3",
+    "@types/node": "^20.11.20",
     "@types/react": "^18.2.55",
     "@types/react-dom": "^18.2.19",
     "@types/webpack": "^5.28.5",
@@ -48,6 +50,7 @@
     "babel-loader": "^9.1.3",
     "copy-webpack-plugin": "^12.0.2",
     "html-webpack-plugin": "^5.6.0",
+    "http-server": "^14.1.1",
     "mini-css-extract-plugin": "^2.8.0",
     "postcss": "^8.4.35",
     "postcss-loader": "^8.1.0",
