@@ -1,0 +1,12 @@
+{
+    "compilerOptions": {
+      "target": "es5", // Adjust based on your needs
+      "lib": ["dom", "dom.iterable", "esnext"], // Include necessary libs
+      "sourceMap": true, // Enable source maps
+      "jsx": "react-jsx", // Set JSX transform
+      "esModuleInterop": true, // Enable es module interop
+      "strict": true, // Enable strict mode for type safety
+      "skipLibCheck": true, // Skip checking against lib files (avoids potential issues with non-standard installations)
+    }
+  }
+  
