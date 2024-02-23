@@ -4,30 +4,27 @@ const HtmlWebpackPlugin = require('html-webpack-plugin');
 const CopyPlugin = require('copy-webpack-plugin');
 
 module.exports = {
-    entry: './src/index.js',
+    entry: {
+        index: './src/index.tsx',
+        // options: './src/options.js',
+    },
     output: {
         path: path.resolve(__dirname, 'dist'),
         filename: '[name].js',
+        chunkFilename: '[name].[chunkhash].js',
     },
-    mode: 'production',
+    devtool: 'inline-source-map',
     module: {
         rules: [
             {
-                test: /\.js|jsx$/,
+                test: /\.(js|jsx|tsx)$/,  // Include .tsx for TypeScript files
                 exclude: /node_modules/,
-                use: {
-                    loader: 'babel-loader',
-                    options: {
-                        presets: [
-                            '@babel/preset-env',
-                            ['@babel/preset-react', { runtime: 'automatic' }]
-                        ]
-                    }
-                }
+                use: 'ts-loader'
             },
             {
                 test: /\.css$/i,
-                use: [MiniCssExtractPlugin.loader, 'css-loader'],
+                include: path.resolve(__dirname, 'src'),
+                use: ['style-loader', 'css-loader', 'postcss-loader'],
             },
             {
                 test: /\.svg$/i,
@@ -43,22 +40,23 @@ module.exports = {
 
         ],
     },
+    resolve: {
+        extensions: ['.tsx', '.ts', '.js'],
+    },
     plugins: [
-        new MiniCssExtractPlugin({
-            filename: '[name].css',
-        }),
         new HtmlWebpackPlugin({
             template: './public/index.html',
             filename: 'popup.html',
         }),
+        // new HtmlWebpackPlugin({
+        //     template: './public/options.html', // Path to your options.html template
+        //     filename: 'options.html', // Output filename for options page
+        // }),
         new CopyPlugin({
             patterns: [
-                // { from: 'public/manifest.json', to: '[name][ext]' },
-                // { from: 'public/*.png', to: '[name][ext]' },
-                // { from :'public/*.jpg', to: '[name][ext]'}
-                { 
-                    from: 'public',
-                },
+                {from: './public/hand.png', to: 'hand.png'},
+                {from: './public/manifest.json', to: 'manifest.json'},
+                {from: './src/mvp_model.onnx', to: 'mvp_model.onnx'},
             ],
         }),
     ],
