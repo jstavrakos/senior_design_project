@@ -15,5 +15,15 @@
   "permissions": [
     "activeTab",
     "scripting"
-  ]
+  ],
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["*.js"]
+    }
+  ],
+  "web_accessible_resources": [{
+    "resources": ["*.wasm"],
+    "matches": ["<all_urls>"]
+    }]
 }
