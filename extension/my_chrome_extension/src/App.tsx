@@ -1,7 +1,6 @@
 import React, { useState, useRef, useEffect, RefObject, createRef } from 'react';
 import Webcam from "react-webcam";
 import * as Jimp from 'jimp'
-// use ES6 style import syntax (recommended)
 import * as ort from 'onnxruntime-web';
 import { Tensor } from 'onnxruntime-web';
 
@@ -30,26 +29,6 @@ export default function App() {
   const [imageSrc, setImageSrc] = useState<string | null>(null);
   const [outputArray, setOutputArray] = useState< number[]| null>(null);
   const webcamRef = createRef<Webcam>();
-
-  // TODO - Permissions for the webcam don't work on initial load of the package
-  // useEffect(() => {
-  //   // Request permission to use the webcam
-  //   chrome.permissions.request({ permissions: ['videoCapture'] }, (granted) => {
-  //     if (granted) {
-  //       // Permission granted, access the webcam
-  //       navigator.mediaDevices
-  //         .getUserMedia({ video: true, audio: false })
-  //         .catch((error) => {
-  //           console.error('Error accessing webcam:', error);
-  //           // Add appropriate error handling or user feedback here
-  //         });
-  //     } else {
-  //       // Permission denied, handle accordingly
-  //       console.error('Permission denied to access webcam');
-  //       // Add appropriate error handling or user feedback here
-  //     }
-  //   });
-  // }, []); // Empty dependency array to run effect only once
 
   const handleOnCapture = () => {
     if (webcamRef.current) {

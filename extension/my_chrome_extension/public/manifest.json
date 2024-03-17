@@ -7,6 +7,7 @@
     "default_popup": "popup.html",
     "default_title": "Manus hand detection"
   },
+  "options_page": "options.html",
   "icons": {
     "16": "hand.png",
     "48": "hand.png",
@@ -15,12 +16,6 @@
   "permissions": [
     "activeTab",
     "scripting"
-  ],
-  "content_scripts": [
-    {
-      "matches": ["<all_urls>"],
-      "js": ["index.js"]
-    }
   ],
   "web_accessible_resources": [{
     "resources": ["*.wasm"],

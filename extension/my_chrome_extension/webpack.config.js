@@ -1,23 +1,22 @@
 const path = require('path');
-const MiniCssExtractPlugin = require('mini-css-extract-plugin');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 const CopyPlugin = require('copy-webpack-plugin');
 
 module.exports = {
     entry: {
         index: './src/index.tsx',
-        // options: './src/options.js',
+        options: './src/options.ts',
     },
     output: {
         path: path.resolve(__dirname, 'dist'),
-        filename: '[name].js',
-        chunkFilename: '[name].[chunkhash].js',
+        filename: '[name].bundle.js',
+        chunkFilename: '[id].bundle_[chunkhash].js',
     },
     devtool: 'inline-source-map',
     module: {
         rules: [
             {
-                test: /\.(js|jsx|tsx)$/,  // Include .tsx for TypeScript files
+                test: /\.(js|jsx|tsx|ts)$/,  // Include .tsx|.ts for TypeScript files
                 exclude: /node_modules/,
                 use: 'ts-loader'
             },
@@ -47,17 +46,21 @@ module.exports = {
         new HtmlWebpackPlugin({
             template: './public/index.html',
             filename: 'popup.html',
+            chunks: ['index'],
         }),
-        // new HtmlWebpackPlugin({
-        //     template: './public/options.html', // Path to your options.html template
-        //     filename: 'options.html', // Output filename for options page
-        // }),
+        new HtmlWebpackPlugin({
+            template: './public/options.html',
+            filename: 'options.html',
+            chunks: ['options'],
+        }),
         new CopyPlugin({
             patterns: [
+                // {from: './public/options.html', to: 'options.html'},
+                // {from: './src/options.js', to: 'options.js'},
                 {from: './public/hand.png', to: 'hand.png'},
                 {from: './public/manifest.json', to: 'manifest.json'},
                 {from: './src/mvp_model.onnx', to: 'mvp_model.onnx'},
-                {from: './node_modules/onnxruntime-web/dist/ort-wasm-simd.wasm', to: '[name][ext]'}
+                {from: './node_modules/onnxruntime-web/dist/*.wasm', to: '[name][ext]'}
             ],
         }),
     ],
