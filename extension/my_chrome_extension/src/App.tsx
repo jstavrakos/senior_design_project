@@ -31,6 +31,18 @@ export default function App() {
   const [stream, setStream] = useState<MediaStream | null>(null);
   const webcamRef = createRef<Webcam>();
 
+  useEffect(() => {
+    chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {
+      if (tabs[0].id !== undefined) {
+        chrome.tabs.sendMessage(tabs[0].id, { useEffect: true }, function(response) {
+          console.log('Response from content.js:', response);
+          if (response && response.webCamState !== undefined) {
+            setWebCamState(response.webCamState);
+          }
+        });
+      }
+    });
+  }, []);
   const handleOnCapture = () => {
     if (webcamRef.current) {
       const capturedImageSrc = webcamRef.current.getScreenshot({width: 150, height: 150});
@@ -84,9 +96,14 @@ export default function App() {
       onClick={() => {
         console.log('webcamState: ', webCamState);
         setWebCamState(!webCamState)
-        chrome.runtime.sendMessage({ 
-          senderId: chrome.runtime.id,
-          webcamState: !webCamState
+        // chrome.runtime.sendMessage({ 
+        //   senderId: chrome.runtime.id,
+        //   webCamState: !webCamState
+        // });
+        chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {
+          if (tabs[0].id !== undefined) {
+          chrome.tabs.sendMessage(tabs[0].id , { webCamState : !webCamState });
+        }
         });
         // toggleCamera(setStream, webCamState, stream);
       }}>
