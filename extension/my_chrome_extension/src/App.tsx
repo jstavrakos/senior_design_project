@@ -28,6 +28,7 @@ export default function App() {
   const [frameCapture, setFrameCapture] = useState(false);
   const [imageSrc, setImageSrc] = useState<string | null>(null);
   const [outputArray, setOutputArray] = useState< number[]| null>(null);
+  const [stream, setStream] = useState<MediaStream | null>(null);
   const webcamRef = createRef<Webcam>();
 
   const handleOnCapture = () => {
@@ -58,7 +59,7 @@ export default function App() {
             const output = await session.run(input);
             console.timeEnd('inference');
             const outputNames = session.outputNames;
-            const confidenceIntervals = output[outputNames[0]].data as unknown as number[];
+            const confidenceIntervals = output[outputNames[0]].data as any as number[];
             // console.log(confidenceIntervals[0]);
             // console.log(confidenceIntervals[1]);
             // console.log(confidenceIntervals[2]);
@@ -68,7 +69,6 @@ export default function App() {
             setOutputArray(probabilities);
           }
         };
-
       }
     } else {
       console.error('Webcam reference not available');
@@ -77,15 +77,24 @@ export default function App() {
   };
 
   return (
-    <div>
-      <h1>Welcome to the gesture app</h1>
-      <button className='text-gray-900 hover:text-white border border-gray-800 hover:bg-gray-900 focus:ring-4 focus:outline-none focus:ring-gray-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center me-2 mb-2 dark:border-gray-600 dark:text-gray-400 dark:hover:text-white dark:hover:bg-gray-600 dark:focus:ring-gray-800'
-      onClick={() => setWebCamState(!webCamState)} >
-        {webCamState ? 'Stop' : 'Start'} Webcam
-      </button>
-      <br />
-      <button 
-      className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+    <div className="mx-auto max-w-lg p-6 bg-gray-100 rounded-lg shadow-md">
+    <h1 className="text-3xl font-semibold text-center mb-6">Welcome to the Gesture App</h1>
+    <button 
+      className="block w-full py-2.5 px-5 mb-4 text-center text-gray-900 bg-gray-200 border border-gray-800 rounded-lg hover:bg-gray-900 hover:text-white focus:outline-none focus:ring-4 focus:ring-gray-300 font-medium"
+      onClick={() => {
+        console.log('webcamState: ', webCamState);
+        setWebCamState(!webCamState)
+        chrome.runtime.sendMessage({ 
+          senderId: chrome.runtime.id,
+          webcamState: !webCamState
+        });
+        // toggleCamera(setStream, webCamState, stream);
+      }}>
+      {webCamState ? 'Stop' : 'Start'} Webcam
+    </button>
+    <br />
+    <button 
+      className="block w-full py-2.5 px-5 mb-4 text-center text-white bg-blue-500 border border-blue-700 rounded-lg font-bold hover:bg-blue-700 focus:outline-none"
       onClick={() => {
         if (webCamState) {
           setFrameCapture(true);
@@ -93,37 +102,47 @@ export default function App() {
         } else {
           setFrameCapture(false);
         }
-      }} >
-        {frameCapture ? 'Stop' : 'Start'} Frame Capture
+      }}>
+      {(frameCapture && !webCamState) ? 'Stop' : 'Start'} Frame Capture
+    </button>
+    <div className="flex items-center justify-center">
+      {webCamState && <div className="mx-auto"><RenderWebcam webcamRef={webcamRef} /></div>}
+      {frameCapture && imageSrc && <img className="mx-auto" src={imageSrc} alt="Captured" />}
+    </div>
+    <div className="flex justify-between">
+      <button 
+        className="text-blue-700 hover:text-white border border-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center mb-2 dark:border-blue-500 dark:text-blue-500 dark:hover:text-white dark:hover:bg-blue-500 dark:focus:ring-blue-800"
+        onClick={changeTabLeft}>
+        Left
       </button>
-      {webCamState && <RenderWebcam webcamRef={webcamRef} />}
-      <br />
-      {frameCapture && <p>Frame </p>}
-      <br />
-      {frameCapture && imageSrc && <img src={imageSrc} alt="Captured" />}
-      <br />
-      {/* <div className="fixed left-0 right-0 flex justify-between">
-        <button className='text-blue-700 hover:text-white border border-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center me-2 mb-2 dark:border-blue-500 dark:text-blue-500 dark:hover:text-white dark:hover:bg-blue-500 dark:focus:ring-blue-800'
-          onClick={changeTabLeft}>Left</button>
-        <button className='bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded'
-          onClick={changeTabRight}>Right</button>
-      </div> */}
-      <div className="flex justify-between">
-        <button className='text-blue-700 hover:text-white border border-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center me-2 mb-2 dark:border-blue-500 dark:text-blue-500 dark:hover:text-white dark:hover:bg-blue-500 dark:focus:ring-blue-800'
-         onClick={changeTabLeft}>Left</button>
-        <button className='bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded'
-        onClick={changeTabRight}>Right</button>
-      </div>
-
-      {outputArray && <div>
+      <button 
+        className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+        onClick={changeTabRight}>
+        Right
+      </button>
+    </div>
+    {outputArray && (
+      <div className="mt-4">
         <p>Probability of A: {outputArray[0]}</p>
         <p>Probability of B: {outputArray[1]}</p>
         <p>Probability of C: {outputArray[2]}</p>
       </div>
-      }
-    </div>
+    )}
+  </div>  
   );
 };
+
+async function toggleCamera(setStream: (stream: MediaStream | null) => void, webCamState: boolean, stream: MediaStream | null) : Promise<void>{
+  if(webCamState){
+    stream?.getTracks().forEach((track: { stop: () => void; }) => {
+      track.stop();
+    });
+    setStream(null);
+  }
+  else {
+   setStream(await navigator.mediaDevices.getUserMedia({ audio: false, video: videoConstraints }));
+  }
+}
 
 function imageDataToTensor(image: ImageData, dims: number[]): Tensor {
   // 1. Get buffer data from image and create R, G, and B arrays.

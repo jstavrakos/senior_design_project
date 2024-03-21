@@ -6,11 +6,15 @@ module.exports = {
     entry: {
         index: './src/index.tsx',
         options: './src/options.ts',
+        background: './src/background.ts',
+        content: './src/content.ts',
     },
+    target: 'web',
     output: {
         path: path.resolve(__dirname, 'dist'),
-        filename: '[name].bundle.js',
+        filename: '[name].js',
         chunkFilename: '[id].bundle_[chunkhash].js',
+        wasmLoading: 'fetch',
     },
     devtool: 'inline-source-map',
     module: {
@@ -35,6 +39,12 @@ module.exports = {
                         },
                     },
                 ],
+            },
+            {
+                test: /\.wasm$/,
+                type: "javascript/auto",
+                loader: "file-loader",
+
             }
 
         ],
