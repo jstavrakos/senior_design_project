@@ -28,8 +28,8 @@ export default function App() {
   const [webCamState, setWebCamState] = useState(false);
   const [frameCapture, setFrameCapture] = useState(false);
   const [imageSrc, setImageSrc] = useState<string | null>(null);
+  const [outputArray, setOutputArray] = useState< number[]| null>(null);
   const webcamRef = createRef<Webcam>();
-  const session = ort.InferenceSession.create('./mvp_model.onnx');
 
   // TODO - Permissions for the webcam don't work on initial load of the package
   // useEffect(() => {
@@ -61,26 +61,34 @@ export default function App() {
       const image = new Image();
       if (capturedImageSrc != null){
         image.src = capturedImageSrc;
-        
         image.onload = async () => {
+          const session = await ort.InferenceSession.create('./mvp_model.onnx', { executionProviders: ['webgl'], graphOptimizationLevel: 'all'});
           if (context) {
             canvas.width = image.width;
             canvas.height = image.height;
             context.filter = 'grayscale(100%)';
             context.drawImage(image, 0, 0);
-            console.log(canvas.toDataURL());
+            // console.log(canvas.toDataURL());
             setImageSrc(canvas.toDataURL());
             
             // Convert base64 image to tensor
-            const [redArray, greenArray, blueArray] = new Array(new Array<number>(), new Array<number>(), new Array<number>());
             const imageData = context.getImageData(0, 0, 150, 150);
             const tensor = imageDataToTensor(imageData, [1, 3, 150, 150]);
             const input = { 'input.1': tensor };
-            const output = await (await (session)).run(input);
-            console.log(output);
+            console.time('inference');
+            const output = await session.run(input);
+            console.timeEnd('inference');
+            const outputNames = session.outputNames;
+            const confidenceIntervals = output[outputNames[0]].data as unknown as number[];
+            // console.log(confidenceIntervals[0]);
+            // console.log(confidenceIntervals[1]);
+            // console.log(confidenceIntervals[2]);
+            const probabilities = softmax(confidenceIntervals);
+            console.log(probabilities);
+
+            setOutputArray(probabilities);
           }
         };
-
 
       }
     } else {
@@ -101,7 +109,7 @@ export default function App() {
       className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
       onClick={() => {
         if (webCamState) {
-          setFrameCapture(!frameCapture);
+          setFrameCapture(true);
           handleOnCapture();
         } else {
           setFrameCapture(false);
@@ -115,12 +123,25 @@ export default function App() {
       <br />
       {frameCapture && imageSrc && <img src={imageSrc} alt="Captured" />}
       <br />
-      <div className="fixed left-0 right-0 flex justify-between">
+      {/* <div className="fixed left-0 right-0 flex justify-between">
+        <button className='text-blue-700 hover:text-white border border-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center me-2 mb-2 dark:border-blue-500 dark:text-blue-500 dark:hover:text-white dark:hover:bg-blue-500 dark:focus:ring-blue-800'
+          onClick={changeTabLeft}>Left</button>
+        <button className='bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded'
+          onClick={changeTabRight}>Right</button>
+      </div> */}
+      <div className="flex justify-between">
         <button className='text-blue-700 hover:text-white border border-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center me-2 mb-2 dark:border-blue-500 dark:text-blue-500 dark:hover:text-white dark:hover:bg-blue-500 dark:focus:ring-blue-800'
          onClick={changeTabLeft}>Left</button>
         <button className='bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded'
         onClick={changeTabRight}>Right</button>
       </div>
+
+      {outputArray && <div>
+        <p>Probability of A: {outputArray[0]}</p>
+        <p>Probability of B: {outputArray[1]}</p>
+        <p>Probability of C: {outputArray[2]}</p>
+      </div>
+      }
     </div>
   );
 };
@@ -151,6 +172,17 @@ function imageDataToTensor(image: ImageData, dims: number[]): Tensor {
   // 5. create the tensor object from onnxruntime-web.
   const inputTensor = new Tensor("float32", float32Data, dims);
   return inputTensor;
+}
+
+function softmax(resultArray: number[]) : number[] {
+  // Get the largest value in the array.
+  const largestNumber = Math.max(...resultArray);
+  // Apply exponential function to each result item subtracted by the largest number, use reduce to get the previous result number and the current number to sum all the exponentials results.
+  const sumOfExp = resultArray.map((resultItem) => Math.exp(resultItem - largestNumber)).reduce((prevNumber, currentNumber) => prevNumber + currentNumber);
+  //Normalizes the resultArray by dividing by the sum of all exponentials; this normalization ensures that the sum of the components of the output vector is 1.
+  return resultArray.map((resultValue, index) => {
+      return Math.exp(resultValue - largestNumber) / sumOfExp;
+  });
 }
 
 function changeTabLeft() {
