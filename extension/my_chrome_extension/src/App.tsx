@@ -31,6 +31,8 @@ export default function App() {
   const [stream, setStream] = useState<MediaStream | null>(null);
   const webcamRef = createRef<Webcam>();
 
+  ort.env.wasm.numThreads = 1;
+  
   useEffect(() => {
     chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {
       if (tabs[0].id !== undefined) {
@@ -54,7 +56,7 @@ export default function App() {
       if (capturedImageSrc != null){
         image.src = capturedImageSrc;
         image.onload = async () => {
-          const session = await ort.InferenceSession.create('./mvp_model.onnx', { executionProviders: ['webgl'], graphOptimizationLevel: 'all'});
+          const session = await ort.InferenceSession.create('./mvp_model.onnx', { executionProviders: ['wasm'], graphOptimizationLevel: 'all'});
           if (context) {
             canvas.width = image.width;
             canvas.height = image.height;
@@ -96,10 +98,6 @@ export default function App() {
       onClick={() => {
         console.log('webcamState: ', webCamState);
         setWebCamState(!webCamState)
-        // chrome.runtime.sendMessage({ 
-        //   senderId: chrome.runtime.id,
-        //   webCamState: !webCamState
-        // });
         chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {
           if (tabs[0].id !== undefined) {
           chrome.tabs.sendMessage(tabs[0].id , { webCamState : !webCamState });
