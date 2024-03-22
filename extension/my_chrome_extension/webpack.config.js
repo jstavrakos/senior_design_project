@@ -72,6 +72,6 @@ module.exports = {
                 {from: './node_modules/onnxruntime-web/dist/*.wasm', to: '[name][ext]'}
             ],
         }),
-        new BundleAnalyzerPlugin()
+        // new BundleAnalyzerPlugin()
     ],
 };
