@@ -30,9 +30,10 @@ export default function App() {
   const [outputArray, setOutputArray] = useState< number[]| null>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
   const webcamRef = createRef<Webcam>();
+  var frameCaptureInterval: NodeJS.Timeout;
 
   ort.env.wasm.numThreads = 1;
-  
+
   useEffect(() => {
     chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {
       if (tabs[0].id !== undefined) {
@@ -45,9 +46,11 @@ export default function App() {
       }
     });
   }, []);
-  const handleOnCapture = () => {
-    if (webcamRef.current) {
-      const capturedImageSrc = webcamRef.current.getScreenshot({width: 150, height: 150});
+
+  const handleOnCapture = (currWebCamRef: React.RefObject<Webcam>) => {
+    console.log(currWebCamRef.current)
+    if (currWebCamRef.current) {
+      const capturedImageSrc = currWebCamRef.current.getScreenshot({width: 150, height: 150});
 
       // Convert base64 image to grayscale
       const canvas = document.createElement('canvas');
@@ -90,6 +93,26 @@ export default function App() {
     }
   };
 
+  // const startFrameCapture = () => {
+  //   const canvas = document.createElement('canvas');
+  //   canvas.width = 150;
+  //   canvas.height = 150;
+  //   const context = canvas.getContext('2d');
+  //   const image = new Image();
+  //   frameCaptureInterval = window.setInterval(() => {
+  //     let frame = webcamRef.current?.getScreenshot({width: 150, height: 150})
+  //     if(frame != null && context != null){
+  //       image.src = frame
+  //       context.filter = 'grayscale(100%)';
+  //       canvas.width = image.width;
+  //       canvas.height = image.height;
+  //       context.drawImage(image, 0, 0);
+  //       setImageSrc(canvas.toDataURL());
+
+  //     }
+  //   }, 30)
+  // };
+
   return (
     <div className="mx-auto max-w-lg p-6 bg-gray-100 rounded-lg shadow-md">
     <h1 className="text-3xl font-semibold text-center mb-6">Welcome to the Gesture App</h1>
@@ -111,14 +134,18 @@ export default function App() {
     <button 
       className="block w-full py-2.5 px-5 mb-4 text-center text-white bg-blue-500 border border-blue-700 rounded-lg font-bold hover:bg-blue-700 focus:outline-none"
       onClick={() => {
-        if (webCamState) {
+        if (webCamState && !frameCapture) {
           setFrameCapture(true);
-          handleOnCapture();
+          frameCaptureInterval = setInterval(() => {
+            handleOnCapture(webcamRef);
+          }, 1000);
+          // handleOnCapture(webcamRef);
         } else {
           setFrameCapture(false);
+          clearInterval(frameCaptureInterval);
         }
       }}>
-      {(frameCapture && !webCamState) ? 'Stop' : 'Start'} Frame Capture
+      {(webCamState && !frameCapture) ? 'Start' : 'Stop'} Frame Capture
     </button>
     <div className="flex items-center justify-center">
       {webCamState && <div className="mx-auto"><RenderWebcam webcamRef={webcamRef} /></div>}

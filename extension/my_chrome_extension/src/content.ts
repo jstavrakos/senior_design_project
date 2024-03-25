@@ -72,9 +72,9 @@ function stopWebcam() {
 }
 console.log('Hello from content.ts');
 
-let testElement = document.createElement('h1');
-testElement.className = 'test-element';
-testElement.innerHTML = 'Hello, world!';
+// let testElement = document.createElement('h1');
+// testElement.className = 'test-element';
+// testElement.innerHTML = 'Hello, world!';
 
-const body = document.querySelector('body');
-body?.appendChild(testElement);
+// const body = document.querySelector('body');
+// body?.appendChild(testElement);
