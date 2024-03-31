@@ -1,24 +1,34 @@
 const path = require('path');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 const CopyPlugin = require('copy-webpack-plugin');
+const BundleAnalyzerPlugin = require('webpack-bundle-analyzer').BundleAnalyzerPlugin;
 
 module.exports = {
     entry: {
         index: './src/index.tsx',
-        options: './src/options.ts',
+        options: './src/options.tsx',
+        background: './src/background.ts',
+        content: './src/content.ts',
     },
+    target: ['web'],
     output: {
         path: path.resolve(__dirname, 'dist'),
-        filename: '[name].bundle.js',
+        filename: '[name].js',
         chunkFilename: '[id].bundle_[chunkhash].js',
+        libraryTarget: 'umd',
     },
     devtool: 'inline-source-map',
     module: {
         rules: [
             {
-                test: /\.(js|jsx|tsx|ts)$/,  // Include .tsx|.ts for TypeScript files
+                test: /\.(tsx|ts)$/,
                 exclude: /node_modules/,
                 use: 'ts-loader'
+            },
+            {
+                test: /\.(js|jsx)$/,
+                exclude: /node_modules/,
+                use: 'babel-loader'
             },
             {
                 test: /\.css$/i,
@@ -35,8 +45,7 @@ module.exports = {
                         },
                     },
                 ],
-            }
-
+            },
         ],
     },
     resolve: {
@@ -63,5 +72,6 @@ module.exports = {
                 {from: './node_modules/onnxruntime-web/dist/*.wasm', to: '[name][ext]'}
             ],
         }),
+        // new BundleAnalyzerPlugin()
     ],
 };
