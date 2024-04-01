@@ -7,23 +7,43 @@
     "default_popup": "popup.html",
     "default_title": "Manus hand detection"
   },
+  "options_page": "options.html",
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"]
+    }
+  ],
   "icons": {
     "16": "hand.png",
     "48": "hand.png",
     "128": "hand.png"
   },
   "permissions": [
+    "storage",
     "activeTab",
-    "scripting"
-  ],
-  "content_scripts": [
-    {
-      "matches": ["<all_urls>"],
-      "js": ["*.js"]
-    }
+    "scripting",
+    "offscreen"
   ],
   "web_accessible_resources": [{
-    "resources": ["*.wasm"],
+    "resources": [
+      "*.js",
+      "index.html",
+      "index.css",
+      "ort-wasm-simd-threaded.jsep.wasm",
+      "ort-wasm-simd-threaded.wasm",
+      "ort-wasm-simd.jsep.wasm",
+      "ort-wasm-simd.wasm",
+      "ort-wasm-threaded.wasm",
+      "ort-wasm.wasm"
+    ],
     "matches": ["<all_urls>"]
-    }]
+  }],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval' ; object-src 'self';"
+  }
+
 }
