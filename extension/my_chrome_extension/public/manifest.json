@@ -25,7 +25,8 @@
   "permissions": [
     "storage",
     "activeTab",
-    "scripting"
+    "scripting",
+    "offscreen"
   ],
   "web_accessible_resources": [{
     "resources": [
@@ -44,4 +45,5 @@
   "content_security_policy": {
     "extension_pages": "script-src 'self' 'wasm-unsafe-eval' ; object-src 'self';"
   }
+
 }

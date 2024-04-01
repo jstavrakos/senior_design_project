@@ -8,7 +8,8 @@ module.exports = {
         index: './src/index.tsx',
         options: './src/options.tsx',
         background: './src/background.ts',
-        content: './src/content.ts',
+        content: './src/content.tsx',
+        off_screen: './src/off_screen.tsx',
     },
     target: ['web'],
     output: {
@@ -62,13 +63,19 @@ module.exports = {
             filename: 'options.html',
             chunks: ['options'],
         }),
+        new HtmlWebpackPlugin({
+            template: './public/off_screen.html',
+            filename: 'off_screen.html',
+            chunks: ['off_screen'],
+        }),
         new CopyPlugin({
             patterns: [
                 // {from: './public/options.html', to: 'options.html'},
                 // {from: './src/options.js', to: 'options.js'},
                 {from: './public/hand.png', to: 'hand.png'},
                 {from: './public/manifest.json', to: 'manifest.json'},
-                {from: './src/mvp_model.onnx', to: 'mvp_model.onnx'},
+                //{from: './src/mvp_model.onnx', to: 'mvp_model.onnx'},
+                {from: './src/yolov8n.onnx', to: 'yolov8n.onnx'},
                 {from: './node_modules/onnxruntime-web/dist/*.wasm', to: '[name][ext]'}
             ],
         }),

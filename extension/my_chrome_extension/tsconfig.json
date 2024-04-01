@@ -7,6 +7,7 @@
       "esModuleInterop": true, // Enable es module interop
       "strict": true, // Enable strict mode for type safety
       "skipLibCheck": true, // Skip checking against lib files (avoids potential issues with non-standard installations)
+      "downlevelIteration": true,
     }
   }
   
