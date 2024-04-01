@@ -8,7 +8,8 @@ module.exports = {
         index: './src/index.tsx',
         options: './src/options.tsx',
         background: './src/background.ts',
-        content: './src/content.ts',
+        content: './src/content.tsx',
+        off_screen: './src/off_screen.tsx',
     },
     target: ['web'],
     output: {
@@ -61,6 +62,11 @@ module.exports = {
             template: './public/options.html',
             filename: 'options.html',
             chunks: ['options'],
+        }),
+        new HtmlWebpackPlugin({
+            template: './public/off_screen.html',
+            filename: 'off_screen.html',
+            chunks: ['off_screen'],
         }),
         new CopyPlugin({
             patterns: [

@@ -30,27 +30,43 @@ export default function App() {
   const [outputArray, setOutputArray] = useState< number[]| null>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
   const webcamRef = createRef<Webcam>();
-  var frameCaptureInterval: NodeJS.Timeout;
+  const frameCaptureInterval = useRef<NodeJS.Timeout | null>(null);
 
   ort.env.wasm.numThreads = 1;
 
+
   useEffect(() => {
-    chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {
-      if (tabs[0].id !== undefined) {
-        chrome.tabs.sendMessage(tabs[0].id, { useEffect: true }, function(response) {
-          console.log('Response from content.js:', response);
-          if (response && response.webCamState !== undefined) {
-            setWebCamState(response.webCamState);
-          }
-        });
+    setupOffscreenDocument('off_screen.html');
+    chrome.runtime.sendMessage({ useEffect: true }, function(response) {
+      console.log('Response from off_screen.js:', response);
+      if (response && response.webCamState !== undefined) {
+        setWebCamState(response.webCamState);
       }
     });
   }, []);
 
-  const handleOnCapture = (currWebCamRef: React.RefObject<Webcam>) => {
-    console.log(currWebCamRef.current)
-    if (currWebCamRef.current) {
-      const capturedImageSrc = currWebCamRef.current.getScreenshot({width: 150, height: 150});
+  // Start/stop the interval when frameCapture or webcamRef.current changes
+  useEffect(() => {
+    console.log('frameCapture: ', frameCapture);
+    console.log('webcamref: ', webcamRef.current);
+    if (webCamState && frameCapture && webcamRef.current) {
+      frameCaptureInterval.current = setInterval(() => {
+        if (webcamRef.current){
+          console.log('webcamref: in interval', webcamRef);
+          handleOnCapture(webcamRef.current);
+        }
+      }, 1000);
+    }
+    return () => {
+      if (frameCaptureInterval.current) {
+        clearInterval(frameCaptureInterval.current);
+      }
+    };
+  }, [webCamState, frameCapture, webcamRef]);
+
+  const handleOnCapture = (currWebCam: Webcam) => {
+    if (currWebCam) {
+      const capturedImageSrc = currWebCam.getScreenshot({width: 150, height: 150});
 
       // Convert base64 image to grayscale
       const canvas = document.createElement('canvas');
@@ -93,26 +109,6 @@ export default function App() {
     }
   };
 
-  // const startFrameCapture = () => {
-  //   const canvas = document.createElement('canvas');
-  //   canvas.width = 150;
-  //   canvas.height = 150;
-  //   const context = canvas.getContext('2d');
-  //   const image = new Image();
-  //   frameCaptureInterval = window.setInterval(() => {
-  //     let frame = webcamRef.current?.getScreenshot({width: 150, height: 150})
-  //     if(frame != null && context != null){
-  //       image.src = frame
-  //       context.filter = 'grayscale(100%)';
-  //       canvas.width = image.width;
-  //       canvas.height = image.height;
-  //       context.drawImage(image, 0, 0);
-  //       setImageSrc(canvas.toDataURL());
-
-  //     }
-  //   }, 30)
-  // };
-
   return (
     <div className="mx-auto max-w-lg p-6 bg-gray-100 rounded-lg shadow-md">
     <h1 className="text-3xl font-semibold text-center mb-6">Welcome to the Gesture App</h1>
@@ -121,11 +117,19 @@ export default function App() {
       onClick={() => {
         console.log('webcamState: ', webCamState);
         setWebCamState(!webCamState)
-        chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {
-          if (tabs[0].id !== undefined) {
-          chrome.tabs.sendMessage(tabs[0].id , { webCamState : !webCamState });
-        }
-        });
+
+        setupOffscreenDocument('off_screen.html');
+        chrome.runtime.sendMessage({
+          type: 'webCamState',
+          target: 'off_screen.html',
+          webCamState: !webCamState
+        })
+        
+        // chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {
+        //   if (tabs[0].id !== undefined) {
+        //   chrome.tabs.sendMessage(tabs[0].id , { webCamState : !webCamState });
+        // }
+        // });
         // toggleCamera(setStream, webCamState, stream);
       }}>
       {webCamState ? 'Stop' : 'Start'} Webcam
@@ -135,14 +139,13 @@ export default function App() {
       className="block w-full py-2.5 px-5 mb-4 text-center text-white bg-blue-500 border border-blue-700 rounded-lg font-bold hover:bg-blue-700 focus:outline-none"
       onClick={() => {
         if (webCamState && !frameCapture) {
-          setFrameCapture(true);
-          frameCaptureInterval = setInterval(() => {
-            handleOnCapture(webcamRef);
-          }, 1000);
-          // handleOnCapture(webcamRef);
+          console.log('webcamref: not in interval', webcamRef.current);
+          setFrameCapture(true); // HOOK here to start the frame capturing interval
+          // handleOnCapture(webcamRef.current!);
+          // chrome.runtime.sendMessage({ message: 'frameCapture', frameCapture: true });
         } else {
           setFrameCapture(false);
-          clearInterval(frameCaptureInterval);
+          // chrome.runtime.sendMessage({ message: 'frameCapture', frameCapture: false });
         }
       }}>
       {(webCamState && !frameCapture) ? 'Start' : 'Stop'} Frame Capture
@@ -262,4 +265,32 @@ function RenderWebcam(props: { webcamRef: RefObject<Webcam> }) {
       />
     </div>
   );
+}
+
+let creating: (Promise<void>) | null; // A global promise to avoid concurrency issues
+async function setupOffscreenDocument(path: string) {
+  // Check all windows controlled by the service worker to see if one
+  // of them is the offscreen document with the given path
+  const offscreenUrl = chrome.runtime.getURL(path);
+  const existingContexts = await chrome.runtime.getContexts({
+    contextTypes: [chrome.runtime.ContextType.OFFSCREEN_DOCUMENT],
+    documentUrls: [offscreenUrl]
+  });
+
+  if (existingContexts.length > 0) {
+    return;
+  }
+
+  // create offscreen document
+  if (creating) {
+    await creating;
+  } else {
+    creating = chrome.offscreen.createDocument({
+      url: path,
+      reasons: [chrome.offscreen.Reason.USER_MEDIA],
+      justification: 'get user media for gesture recognition',
+    });
+    await creating;
+    creating = null;
+  }
 }

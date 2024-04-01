@@ -2,14 +2,14 @@
 var webCamState = false;
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   // Check if the message is from app.js
-  console.log('content.ts message: ', message);
+  console.log('off_screen.ts message: ', message);
   // console.log('sender.id: ', sender.id);
   if (sender.id === 'hljhapmlbiiediilmbgekaeobfplpjpc') {
     console.log(message);
     // Check if the message contains the webcamState property
     if (message.hasOwnProperty('webCamState')) {
       webCamState = message.webCamState;
-      console.log('Toggling webcam from content.ts state: ', webCamState);
+      console.log('Toggling webcam from off_screen.ts state: ', webCamState);
       if (webCamState === true) {
         // Start the webcam
         startWebcam();
@@ -20,7 +20,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
     if(message.hasOwnProperty('useEffect') && message.useEffect === true){
       let response = {webCamState: webCamState};
-      console.log('useEffect response: ', response);
+      console.log('useEffect response from off_screen: ', response);
       sendResponse(response);
     }
   }
@@ -70,7 +70,7 @@ function stopWebcam() {
     videoElement = null;
   }
 }
-console.log('Hello from content.ts');
+console.log('Hello from off_screen.tsx');
 
 // let testElement = document.createElement('h1');
 // testElement.className = 'test-element';
