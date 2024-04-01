@@ -1,25 +1,35 @@
 const path = require('path');
-const MiniCssExtractPlugin = require('mini-css-extract-plugin');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 const CopyPlugin = require('copy-webpack-plugin');
+const BundleAnalyzerPlugin = require('webpack-bundle-analyzer').BundleAnalyzerPlugin;
 
 module.exports = {
     entry: {
         index: './src/index.tsx',
-        // options: './src/options.js',
+        options: './src/options.tsx',
+        background: './src/background.ts',
+        content: './src/content.tsx',
+        off_screen: './src/off_screen.tsx',
     },
+    target: ['web'],
     output: {
         path: path.resolve(__dirname, 'dist'),
         filename: '[name].js',
-        chunkFilename: '[name].[chunkhash].js',
+        chunkFilename: '[id].bundle_[chunkhash].js',
+        libraryTarget: 'umd',
     },
     devtool: 'inline-source-map',
     module: {
         rules: [
             {
-                test: /\.(js|jsx|tsx)$/,  // Include .tsx for TypeScript files
+                test: /\.(tsx|ts)$/,
                 exclude: /node_modules/,
                 use: 'ts-loader'
+            },
+            {
+                test: /\.(js|jsx)$/,
+                exclude: /node_modules/,
+                use: 'babel-loader'
             },
             {
                 test: /\.css$/i,
@@ -36,8 +46,7 @@ module.exports = {
                         },
                     },
                 ],
-            }
-
+            },
         ],
     },
     resolve: {
@@ -47,18 +56,29 @@ module.exports = {
         new HtmlWebpackPlugin({
             template: './public/index.html',
             filename: 'popup.html',
+            chunks: ['index'],
         }),
-        // new HtmlWebpackPlugin({
-        //     template: './public/options.html', // Path to your options.html template
-        //     filename: 'options.html', // Output filename for options page
-        // }),
+        new HtmlWebpackPlugin({
+            template: './public/options.html',
+            filename: 'options.html',
+            chunks: ['options'],
+        }),
+        new HtmlWebpackPlugin({
+            template: './public/off_screen.html',
+            filename: 'off_screen.html',
+            chunks: ['off_screen'],
+        }),
         new CopyPlugin({
             patterns: [
+                // {from: './public/options.html', to: 'options.html'},
+                // {from: './src/options.js', to: 'options.js'},
                 {from: './public/hand.png', to: 'hand.png'},
                 {from: './public/manifest.json', to: 'manifest.json'},
-                {from: './src/mvp_model.onnx', to: 'mvp_model.onnx'},
-                {from: './node_modules/onnxruntime-web/dist/ort-wasm-simd.wasm', to: '[name][ext]'}
+                //{from: './src/mvp_model.onnx', to: 'mvp_model.onnx'},
+                {from: './src/yolov8n.onnx', to: 'yolov8n.onnx'},
+                {from: './node_modules/onnxruntime-web/dist/*.wasm', to: '[name][ext]'}
             ],
         }),
+        // new BundleAnalyzerPlugin()
     ],
 };
