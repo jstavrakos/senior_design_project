@@ -63,7 +63,7 @@ export default function App() {
         setWebCamState(response.webCamState);
       }
     });
-  }, []);*/
+  }, []);
 
   // Start/stop the interval when frameCapture or webcamRef.current changes
   useEffect(() => {
