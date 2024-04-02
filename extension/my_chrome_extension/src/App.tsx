@@ -23,6 +23,9 @@ const videoConstraints: VideoConstraints = {
   facingMode: FacingMode.USER,
 }
 
+// Webcam Time Interval
+const WEBCAM_INTERVAL = 1000;
+
 // Constants for model input
 const IMG_HEIGHT = 480;
 const IMG_WIDTH = 480;
@@ -75,7 +78,7 @@ export default function App() {
           console.log('webcamref: in interval', webcamRef);
           handleOnCapture(webcamRef.current);
         }
-      }, 1000);
+      }, WEBCAM_INTERVAL);
     }
     return () => {
       if (frameCaptureInterval.current) {
@@ -93,31 +96,28 @@ export default function App() {
         image.src = capturedImageSrc;
 
         image.onload = async () => {
-          // PRE PROCESS
+          // Load the webcam image from our canvas to process
           const canvas = document.createElement('canvas');
           const context = canvas.getContext('2d');
 
           if (context) {
             canvas.width = IMG_WIDTH;
             canvas.height = IMG_HEIGHT;
-
             context.drawImage(image, 0, 0, IMG_WIDTH, IMG_HEIGHT);
-
-            // console.log(canvas.toDataURL());
             setImageSrc(canvas.toDataURL());
             
-            // Convert base64 image to tensor
-
+            // PRE PROCESS
             const imageData = context.getImageData(0, 0, IMG_WIDTH, IMG_HEIGHT);
             const pixels = imageData.data;
-
-            const red = [];
-            const green = [];
-            const blue = [];
+            
+            // Convert base64 image to RGB tensor for the model
+            const red: number[] = [];
+            const green: number[] = [];
+            const blue: number[] = [];
             for( let i = 0; i < pixels.length; i += 4 ) {
-              red.push(pixels[i]/255.0);
-              green.push(pixels[i+1]/255.0);
-              blue.push(pixels[i+2]/255.0);
+              red.push(pixels[i] / 255.0);
+              green.push(pixels[i+1] / 255.0);
+              blue.push(pixels[i+2] / 255.0);
             }
 
             const input = [...red, ...green, ...blue];
@@ -148,7 +148,7 @@ export default function App() {
               results.push([label, prob])
             }
 
-            results = results.sort((res1, res2) => res2[1]-res1[1]) // sort by prob
+            results = results.sort((res1, res2) => res2[1]-res1[1]) // sort by probability
             console.log(results) // if no objects are detected, result.length == 0
             setOutputArray(results)
             // END POST PROCESS
@@ -176,13 +176,6 @@ export default function App() {
           target: 'off_screen.html',
           webCamState: !webCamState
         })
-        
-        // chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {
-        //   if (tabs[0].id !== undefined) {
-        //   chrome.tabs.sendMessage(tabs[0].id , { webCamState : !webCamState });
-        // }
-        // });
-        // toggleCamera(setStream, webCamState, stream);
       }}>
       {webCamState ? 'Stop' : 'Start'} Webcam
     </button>
@@ -237,17 +230,6 @@ async function toggleCamera(setStream: (stream: MediaStream | null) => void, web
   else {
    setStream(await navigator.mediaDevices.getUserMedia({ audio: false, video: videoConstraints }));
   }
-}
-
-function softmax(resultArray: number[]) : number[] {
-  // Get the largest value in the array.
-  const largestNumber = Math.max(...resultArray);
-  // Apply exponential function to each result item subtracted by the largest number, use reduce to get the previous result number and the current number to sum all the exponentials results.
-  const sumOfExp = resultArray.map((resultItem) => Math.exp(resultItem - largestNumber)).reduce((prevNumber, currentNumber) => prevNumber + currentNumber);
-  //Normalizes the resultArray by dividing by the sum of all exponentials; this normalization ensures that the sum of the components of the output vector is 1.
-  return resultArray.map((resultValue, index) => {
-      return Math.exp(resultValue - largestNumber) / sumOfExp;
-  });
 }
 
 function changeTabLeft() {
