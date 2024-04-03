@@ -23,6 +23,23 @@ const videoConstraints: VideoConstraints = {
   facingMode: FacingMode.USER,
 }
 
+// Webcam Time Interval
+const WEBCAM_INTERVAL = 1000;
+
+// Global variable and function for the model which will only be loaded once
+let modelPromise: Promise<any> | null = null;
+let MODEL: ort.InferenceSession;
+
+function loadModel() {
+    if (!modelPromise) {
+        modelPromise = ort.InferenceSession.create('./yolov8n.onnx', {
+            executionProviders: ['wasm'],
+            graphOptimizationLevel: 'all'
+        });
+    }
+    return modelPromise;
+}
+
 // Constants for model input
 const IMG_HEIGHT = 480;
 const IMG_WIDTH = 480;
@@ -75,7 +92,7 @@ export default function App() {
           console.log('webcamref: in interval', webcamRef);
           handleOnCapture(webcamRef.current);
         }
-      }, 1000);
+      }, WEBCAM_INTERVAL);
     }
     return () => {
       if (frameCaptureInterval.current) {
@@ -93,46 +110,39 @@ export default function App() {
         image.src = capturedImageSrc;
 
         image.onload = async () => {
-          // PRE PROCESS
+          // Load the webcam image from our canvas to process
           const canvas = document.createElement('canvas');
           const context = canvas.getContext('2d');
 
           if (context) {
             canvas.width = IMG_WIDTH;
             canvas.height = IMG_HEIGHT;
-
             context.drawImage(image, 0, 0, IMG_WIDTH, IMG_HEIGHT);
-
-            // console.log(canvas.toDataURL());
             setImageSrc(canvas.toDataURL());
             
-            // Convert base64 image to tensor
-
+            // PRE PROCESS
+            //console.time('pass through model')
             const imageData = context.getImageData(0, 0, IMG_WIDTH, IMG_HEIGHT);
             const pixels = imageData.data;
-
-            const red = [];
-            const green = [];
-            const blue = [];
+            
+            // Convert base64 image to RGB tensor for the model
+            const red: number[] = [];
+            const green: number[] = [];
+            const blue: number[] = [];
             for( let i = 0; i < pixels.length; i += 4 ) {
-              red.push(pixels[i]/255.0);
-              green.push(pixels[i+1]/255.0);
-              blue.push(pixels[i+2]/255.0);
+              red.push(pixels[i] / 255.0);
+              green.push(pixels[i+1] / 255.0);
+              blue.push(pixels[i+2] / 255.0);
             }
 
             const input = [...red, ...green, ...blue];
             // END PRE PROCESS
 
-            // CREATE AND RUN MODEL
-            const model = await ort.InferenceSession.create('./yolov8n.onnx', { 
-              executionProviders: ['wasm'], 
-              graphOptimizationLevel: 'all'
-            });
-
+            // RUN MODEL - model was already created once when the webcam was started
             const model_input = new ort.Tensor(Float32Array.from(input), [1, 3, IMG_WIDTH, IMG_HEIGHT]);
-            const model_output = await model.run({images: model_input});
+            const model_output = await MODEL.run({images: model_input});
             const output = model_output["output0"].data;
-            // END CREATE AND RUN MODEL
+            // END RUN MODEL
             
             // POST PROCESS
             let results: any[] = [];
@@ -148,7 +158,8 @@ export default function App() {
               results.push([label, prob])
             }
 
-            results = results.sort((res1, res2) => res2[1]-res1[1]) // sort by prob
+            results = results.sort((res1, res2) => res2[1]-res1[1]) // sort by probability
+            //console.timeEnd('pass through model')
             console.log(results) // if no objects are detected, result.length == 0
             setOutputArray(results)
             // END POST PROCESS
@@ -175,14 +186,14 @@ export default function App() {
           type: 'webCamState',
           target: 'off_screen.html',
           webCamState: !webCamState
-        })
-        
-        // chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {
-        //   if (tabs[0].id !== undefined) {
-        //   chrome.tabs.sendMessage(tabs[0].id , { webCamState : !webCamState });
-        // }
-        // });
-        // toggleCamera(setStream, webCamState, stream);
+        });
+
+        // Load the model once when the webcam button is pressed
+        (async () => {
+          MODEL = await loadModel();
+          console.log(`model loaded: ${MODEL}`);
+        })();
+
       }}>
       {webCamState ? 'Stop' : 'Start'} Webcam
     </button>
@@ -237,17 +248,6 @@ async function toggleCamera(setStream: (stream: MediaStream | null) => void, web
   else {
    setStream(await navigator.mediaDevices.getUserMedia({ audio: false, video: videoConstraints }));
   }
-}
-
-function softmax(resultArray: number[]) : number[] {
-  // Get the largest value in the array.
-  const largestNumber = Math.max(...resultArray);
-  // Apply exponential function to each result item subtracted by the largest number, use reduce to get the previous result number and the current number to sum all the exponentials results.
-  const sumOfExp = resultArray.map((resultItem) => Math.exp(resultItem - largestNumber)).reduce((prevNumber, currentNumber) => prevNumber + currentNumber);
-  //Normalizes the resultArray by dividing by the sum of all exponentials; this normalization ensures that the sum of the components of the output vector is 1.
-  return resultArray.map((resultValue, index) => {
-      return Math.exp(resultValue - largestNumber) / sumOfExp;
-  });
 }
 
 function changeTabLeft() {
