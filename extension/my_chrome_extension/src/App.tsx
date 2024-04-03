@@ -26,6 +26,20 @@ const videoConstraints: VideoConstraints = {
 // Webcam Time Interval
 const WEBCAM_INTERVAL = 1000;
 
+// Global variable and function for the model which will only be loaded once
+let modelPromise: Promise<any> | null = null;
+let MODEL: ort.InferenceSession;
+
+function loadModel() {
+    if (!modelPromise) {
+        modelPromise = ort.InferenceSession.create('./yolov8n.onnx', {
+            executionProviders: ['wasm'],
+            graphOptimizationLevel: 'all'
+        });
+    }
+    return modelPromise;
+}
+
 // Constants for model input
 const IMG_HEIGHT = 480;
 const IMG_WIDTH = 480;
@@ -107,6 +121,7 @@ export default function App() {
             setImageSrc(canvas.toDataURL());
             
             // PRE PROCESS
+            //console.time('pass through model')
             const imageData = context.getImageData(0, 0, IMG_WIDTH, IMG_HEIGHT);
             const pixels = imageData.data;
             
@@ -123,16 +138,11 @@ export default function App() {
             const input = [...red, ...green, ...blue];
             // END PRE PROCESS
 
-            // CREATE AND RUN MODEL
-            const model = await ort.InferenceSession.create('./yolov8n.onnx', { 
-              executionProviders: ['wasm'], 
-              graphOptimizationLevel: 'all'
-            });
-
+            // RUN MODEL - model was already created once when the webcam was started
             const model_input = new ort.Tensor(Float32Array.from(input), [1, 3, IMG_WIDTH, IMG_HEIGHT]);
-            const model_output = await model.run({images: model_input});
+            const model_output = await MODEL.run({images: model_input});
             const output = model_output["output0"].data;
-            // END CREATE AND RUN MODEL
+            // END RUN MODEL
             
             // POST PROCESS
             let results: any[] = [];
@@ -149,6 +159,7 @@ export default function App() {
             }
 
             results = results.sort((res1, res2) => res2[1]-res1[1]) // sort by probability
+            //console.timeEnd('pass through model')
             console.log(results) // if no objects are detected, result.length == 0
             setOutputArray(results)
             // END POST PROCESS
@@ -175,7 +186,14 @@ export default function App() {
           type: 'webCamState',
           target: 'off_screen.html',
           webCamState: !webCamState
-        })
+        });
+
+        // Load the model once when the webcam button is pressed
+        (async () => {
+          MODEL = await loadModel();
+          console.log(`model loaded: ${MODEL}`);
+        })();
+
       }}>
       {webCamState ? 'Stop' : 'Start'} Webcam
     </button>
