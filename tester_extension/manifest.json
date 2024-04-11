@@ -13,6 +13,7 @@
   "permissions": [
     "scripting", 
     "activeTab", 
-    "tabs"
+    "tabs", 
+    "alarms"
   ]
 }
