@@ -55,7 +55,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.message === ('frameCaptureState')) {
       frameCaptureState = message.frameCaptureState;
       if(frameCaptureState === true) {
-        let response = {results: null};
+        let response = {message : 'frameCaptureState', results: null};
 
         // response.results = handleOnCapture();
         // console.log('model_input response from off_screen: ', response);
@@ -64,14 +64,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           handleOnCapture().then((results) => {
             response.results = results;
             console.log('model_input response from off_screen: ', response);
-            sendResponse(response);
+            chrome.runtime.sendMessage(response);
+            // sendResponse(response);
           });
         }, 1000);
-
       }
       else {
         clearInterval(frameCaptureInterval);
-        console.error('Frame capture state is off');
+        console.log('Frame capture state is off');
       }
     }
   }
@@ -115,6 +115,7 @@ function stopWebcam() {
     stream.getTracks().forEach((track) => {
       track.stop();
     });
+    stream = null;
   }
 
   // Remove the video element from the page
@@ -133,7 +134,6 @@ function loadModel() {
             MODEL = model;
         });
     }
-    
 }
 
 async function handleOnCapture (): Promise<any> {

@@ -32,7 +32,7 @@ export default function App() {
 
   ort.env.wasm.numThreads = 1;
 
-  
+  var frameCaptureInterval: any = null;
 
   useEffect(() => {
     setupOffscreenDocument('off_screen.html');
@@ -47,6 +47,30 @@ export default function App() {
     });
   }, []);
 
+  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (sender.id === 'hljhapmlbiiediilmbgekaeobfplpjpc' && message.message !== undefined) {
+      if (message.message === 'frameCaptureState') {
+        setOutputArray(message.results);
+      }
+    }
+  });
+
+  // useEffect(() => {
+  //   if (frameCaptureState) {
+  //     frameCaptureInterval = setInterval(() => {
+  //       chrome.runtime.sendMessage({ message: 'frameCaptureState', frameCaptureState: true }, function(response) {
+  //         if (response && response.results) {
+  //           setOutputArray(response.results);
+  //         }
+  //       });
+  //     });
+  //   }
+  //   else {
+  //     chrome.runtime.sendMessage({ message: 'frameCaptureState', frameCaptureState: false });
+  //     clearInterval(frameCaptureInterval);
+  //   }
+  // }, [frameCaptureState]);
+
   return (
     <div className="mx-auto max-w-lg p-6 bg-gray-100 rounded-lg shadow-md">
     <h1 className="text-3xl font-semibold text-center mb-6">Welcome to the Gesture App</h1>
@@ -56,7 +80,7 @@ export default function App() {
         if(webCamState){
           setWebCamState(false);
           setFrameCaptureState(false);
-          chrome.runtime.sendMessage({ message: 'frameCaptureState', webCamState: false });
+          chrome.runtime.sendMessage({ message: 'frameCaptureState', frameCaptureState: false });
         }
         else {
           setWebCamState(true);
@@ -73,21 +97,16 @@ export default function App() {
       onClick={() => {
         if (webCamState && !frameCaptureState) {
           setFrameCaptureState(true); // HOOK here to start the frame capturing interval
-          chrome.runtime.sendMessage({ message: 'frameCaptureState', frameCaptureState: true }, function(response) {
-            if (response && response.results) {
-              setOutputArray(response.results);
-            }
-          });
+          // frameCaptureInterval = setInterval(() => {
+            chrome.runtime.sendMessage({ message: 'frameCaptureState', frameCaptureState: true });
+          // }, 1000);
         } else {
           setFrameCaptureState(false);
-          chrome.runtime.sendMessage({ message: 'frameCaptureState', frameCaptureState: false }, function(response) {
-            if (response && response.results) {
-              setOutputArray(response.results);
-            }
-          });
+          chrome.runtime.sendMessage({ message: 'frameCaptureState', frameCaptureState: false });
+          clearInterval(frameCaptureInterval);
         }
       }}>
-      {(webCamState && !frameCaptureState) ? 'Start' : 'Stop'} Frame Capture
+      {(frameCaptureState) ? 'Stop' : 'Start'} Frame Capture
     </button>
     <div className="flex items-center justify-center">
       {webCamState && <div className="mx-auto"><RenderWebcam webcamRef={webcamRef} /></div>}
