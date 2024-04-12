@@ -145,7 +145,7 @@ export default function App() {
             // END RUN MODEL
             
             // POST PROCESS
-            let results: any[] = [];
+            let highest_probabilities: { [key: string]: number } = {};
             for ( let i = 0; i < OUTPUT_TENSOR_SIZE; i++ ) {
               const [class_id, prob] = [...Array(NUM_CLASSES).keys()]
                     .map(col => [col, output[OUTPUT_TENSOR_SIZE*(col+4)+i]])
@@ -155,9 +155,13 @@ export default function App() {
                 continue;
               }
               const label = yolo_classes[ Number(class_id) ];
-              results.push([label, prob])
+              if( !(label in highest_probabilities) || Number(prob) > highest_probabilities[label] ) {
+                //results.push([label, prob])
+                highest_probabilities[label] = Number(prob);
+              }
             }
-
+            
+            let results: any[] = Object.entries(highest_probabilities);
             results = results.sort((res1, res2) => res2[1]-res1[1]) // sort by probability
             //console.timeEnd('pass through model')
             console.log(results) // if no objects are detected, result.length == 0
