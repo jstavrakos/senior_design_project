@@ -1,8 +1,5 @@
-import React, { useState, useRef, useEffect, RefObject, createRef } from 'react';
+import { useState, useEffect, RefObject, createRef } from 'react';
 import Webcam from "react-webcam";
-import * as Jimp from 'jimp'
-import * as ort from 'onnxruntime-web';
-import { Tensor } from 'onnxruntime-web';
 
 // Interface for video constraints with type safety
 interface VideoConstraints {
@@ -26,14 +23,11 @@ const videoConstraints: VideoConstraints = {
 export default function App() {
   const [webCamState, setWebCamState] = useState(false);
   const [frameCaptureState, setFrameCaptureState] = useState(false);
-  const [imageSrc, setImageSrc] = useState<string | null>(null);
+  const [imageSrc, setImageSrc] = useState<string | null>(null); // Image source not displayed anymore as data is sent to off_screen.tsx
   const [outputArray, setOutputArray] = useState< number[]| null>(null);
   const webcamRef = createRef<Webcam>();
 
-  ort.env.wasm.numThreads = 1;
-
-  var frameCaptureInterval: any = null;
-
+  // Update the webcam state and frame capture state from the background script
   useEffect(() => {
     setupOffscreenDocument('off_screen.html');
     chrome.runtime.sendMessage({ message: 'useEffect'}, function(response) {
@@ -47,6 +41,7 @@ export default function App() {
     });
   }, []);
 
+  // Listen for messages from the background script
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (sender.id === 'hljhapmlbiiediilmbgekaeobfplpjpc' && message.message !== undefined) {
       if (message.message === 'frameCaptureState') {
@@ -54,22 +49,6 @@ export default function App() {
       }
     }
   });
-
-  // useEffect(() => {
-  //   if (frameCaptureState) {
-  //     frameCaptureInterval = setInterval(() => {
-  //       chrome.runtime.sendMessage({ message: 'frameCaptureState', frameCaptureState: true }, function(response) {
-  //         if (response && response.results) {
-  //           setOutputArray(response.results);
-  //         }
-  //       });
-  //     });
-  //   }
-  //   else {
-  //     chrome.runtime.sendMessage({ message: 'frameCaptureState', frameCaptureState: false });
-  //     clearInterval(frameCaptureInterval);
-  //   }
-  // }, [frameCaptureState]);
 
   return (
     <div className="mx-auto max-w-lg p-6 bg-gray-100 rounded-lg shadow-md">
@@ -86,8 +65,6 @@ export default function App() {
           setWebCamState(true);
         }
         chrome.runtime.sendMessage({ message: 'webCamState', webCamState: !webCamState });
-
-
       }}>
       {webCamState ? 'Stop' : 'Start'} Webcam
     </button>
@@ -96,14 +73,11 @@ export default function App() {
       className="block w-full py-2.5 px-5 mb-4 text-center text-white bg-blue-500 border border-blue-700 rounded-lg font-bold hover:bg-blue-700 focus:outline-none"
       onClick={() => {
         if (webCamState && !frameCaptureState) {
-          setFrameCaptureState(true); // HOOK here to start the frame capturing interval
-          // frameCaptureInterval = setInterval(() => {
-            chrome.runtime.sendMessage({ message: 'frameCaptureState', frameCaptureState: true });
-          // }, 1000);
+          setFrameCaptureState(true); 
+          chrome.runtime.sendMessage({ message: 'frameCaptureState', frameCaptureState: true });
         } else {
           setFrameCaptureState(false);
           chrome.runtime.sendMessage({ message: 'frameCaptureState', frameCaptureState: false });
-          clearInterval(frameCaptureInterval);
         }
       }}>
       {(frameCaptureState) ? 'Stop' : 'Start'} Frame Capture

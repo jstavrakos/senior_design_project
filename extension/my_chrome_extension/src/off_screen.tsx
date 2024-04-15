@@ -58,8 +58,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         let response = {message : 'frameCaptureState', results: null};
 
         // response.results = handleOnCapture();
-        // console.log('model_input response from off_screen: ', response);
-        // sendResponse(response);
         frameCaptureInterval = setInterval(() => {
           handleOnCapture().then((results) => {
             response.results = results;
@@ -67,7 +65,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             chrome.runtime.sendMessage(response);
             // sendResponse(response);
           });
-        }, 1000);
+        }, 300);
       }
       else {
         clearInterval(frameCaptureInterval);
@@ -96,7 +94,9 @@ function startWebcam() {
         videoElement.style.position = 'fixed';
         videoElement.style.top = '0';
         videoElement.style.left = '0';
-        videoElement.style.width = '150'; // Adjust the size as needed
+        
+        // Adjust the size as needed
+        videoElement.style.width = '150'; 
         videoElement.style.height = '150';
 
         // Append the video element to the page
