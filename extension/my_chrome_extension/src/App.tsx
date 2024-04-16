@@ -32,7 +32,7 @@ let MODEL: ort.InferenceSession;
 
 function loadModel() {
     if (!modelPromise) {
-        modelPromise = ort.InferenceSession.create('./yolov8n.onnx', {
+        modelPromise = ort.InferenceSession.create('./custom.onnx', {
             executionProviders: ['wasm'],
             graphOptimizationLevel: 'all'
         });
@@ -44,20 +44,13 @@ function loadModel() {
 const IMG_HEIGHT = 480;
 const IMG_WIDTH = 480;
 
-// Constants for the model
-const NUM_CLASSES = 80;
+// Constants for the model - analyze model_output to see the tensor shape
+const NUM_CLASSES = 5;
 const OUTPUT_TENSOR_SIZE = 4725;
 
 // Class Labels
 const yolo_classes = [
-  'person', 'bicycle', 'car', 'motorcycle', 'airplane', 'bus', 'train', 'truck', 'boat',
-  'traffic light', 'fire hydrant', 'stop sign', 'parking meter', 'bench', 'bird', 'cat', 'dog', 'horse',
-  'sheep', 'cow', 'elephant', 'bear', 'zebra', 'giraffe', 'backpack', 'umbrella', 'handbag', 'tie', 'suitcase',
-  'frisbee', 'skis', 'snowboard', 'sports ball', 'kite', 'baseball bat', 'baseball glove', 'skateboard',
-  'surfboard', 'tennis racket', 'bottle', 'wine glass', 'cup', 'fork', 'knife', 'spoon', 'bowl', 'banana', 'apple',
-  'sandwich', 'orange', 'broccoli', 'carrot', 'hot dog', 'pizza', 'donut', 'cake', 'chair', 'couch', 'potted plant',
-  'bed', 'dining table', 'toilet', 'tv', 'laptop', 'mouse', 'remote', 'keyboard', 'cell phone', 'microwave', 'oven',
-  'toaster', 'sink', 'refrigerator', 'book', 'clock', 'vase', 'scissors', 'teddy bear', 'hair drier', 'toothbrush'
+  '1', '2', '3', '4', '5'
 ];
 
 export default function App() {
@@ -151,12 +144,12 @@ export default function App() {
                     .map(col => [col, output[OUTPUT_TENSOR_SIZE*(col+4)+i]])
                     .reduce((accum, item) => item[1]>accum[1] ? item : accum,[0,0]);
               
-              if ( Number(prob) < 0.5 ) {
+              if ( Number(prob) < 0.25 ) {
                 continue;
               }
               const label = yolo_classes[ Number(class_id) ];
+              // only return the highest confidence detection for each class
               if( !(label in highest_probabilities) || Number(prob) > highest_probabilities[label] ) {
-                //results.push([label, prob])
                 highest_probabilities[label] = Number(prob);
               }
             }
