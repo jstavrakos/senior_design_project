@@ -1,8 +1,5 @@
-import React, { useState, useRef, useEffect, RefObject, createRef } from 'react';
+import { useState, useEffect, RefObject, createRef } from 'react';
 import Webcam from "react-webcam";
-import * as Jimp from 'jimp'
-import * as ort from 'onnxruntime-web';
-import { Tensor } from 'onnxruntime-web';
 
 // Interface for video constraints with type safety
 interface VideoConstraints {
@@ -23,152 +20,35 @@ const videoConstraints: VideoConstraints = {
   facingMode: FacingMode.USER,
 }
 
-// Webcam Time Interval
-const WEBCAM_INTERVAL = 1000;
-
-// Global variable and function for the model which will only be loaded once
-let modelPromise: Promise<any> | null = null;
-let MODEL: ort.InferenceSession;
-
-function loadModel() {
-    if (!modelPromise) {
-        modelPromise = ort.InferenceSession.create('./custom.onnx', {
-            executionProviders: ['wasm'],
-            graphOptimizationLevel: 'all'
-        });
-    }
-    return modelPromise;
-}
-
-// Constants for model input
-const IMG_HEIGHT = 480;
-const IMG_WIDTH = 480;
-
-// Constants for the model - analyze model_output to see the tensor shape
-const NUM_CLASSES = 5;
-const OUTPUT_TENSOR_SIZE = 4725;
-const CONFIDENCE_BOUND = 0.1;
-
-// Class Labels
-const yolo_classes = [
-  '1', '2', '3', '4', '5'
-];
-
 export default function App() {
   const [webCamState, setWebCamState] = useState(false);
-  const [frameCapture, setFrameCapture] = useState(false);
-  const [imageSrc, setImageSrc] = useState<string | null>(null);
+  const [frameCaptureState, setFrameCaptureState] = useState(false);
+  const [imageSrc, setImageSrc] = useState<string | null>(null); // Image source not displayed anymore as data is sent to off_screen.tsx
   const [outputArray, setOutputArray] = useState< number[]| null>(null);
-  const [stream, setStream] = useState<MediaStream | null>(null);
   const webcamRef = createRef<Webcam>();
-  const frameCaptureInterval = useRef<NodeJS.Timeout | null>(null);
 
-  ort.env.wasm.numThreads = 1;
-
-
+  // Update the webcam state and frame capture state from the background script
   useEffect(() => {
     setupOffscreenDocument('off_screen.html');
-    chrome.runtime.sendMessage({ useEffect: true }, function(response) {
+    chrome.runtime.sendMessage({ message: 'useEffect'}, function(response) {
       console.log('Response from off_screen.js:', response);
       if (response && response.webCamState !== undefined) {
         setWebCamState(response.webCamState);
       }
+      if (response && response.frameCaptureState !== undefined) {
+        setFrameCaptureState(response.frameCaptureState);
+      }
     });
   }, []);
 
-  // Start/stop the interval when frameCapture or webcamRef.current changes
-  useEffect(() => {
-    console.log('frameCapture: ', frameCapture);
-    console.log('webcamref: ', webcamRef.current);
-    if (webCamState && frameCapture && webcamRef.current) {
-      frameCaptureInterval.current = setInterval(() => {
-        if (webcamRef.current){
-          console.log('webcamref: in interval', webcamRef);
-          handleOnCapture(webcamRef.current);
-        }
-      }, WEBCAM_INTERVAL);
-    }
-    return () => {
-      if (frameCaptureInterval.current) {
-        clearInterval(frameCaptureInterval.current);
+  // Listen for messages from the background script
+  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (sender.id === 'hljhapmlbiiediilmbgekaeobfplpjpc' && message.message !== undefined) {
+      if (message.message === 'frameCaptureState') {
+        setOutputArray(message.results);
       }
-    };
-  }, [webCamState, frameCapture, webcamRef]);
-
-  const handleOnCapture = (currWebCam: Webcam) => {
-    if (currWebCam) {
-      const capturedImageSrc = currWebCam.getScreenshot({width: 150, height: 150});
-
-      const image = new Image();
-      if (capturedImageSrc != null){
-        image.src = capturedImageSrc;
-
-        image.onload = async () => {
-          // Load the webcam image from our canvas to process
-          const canvas = document.createElement('canvas');
-          const context = canvas.getContext('2d');
-
-          if (context) {
-            canvas.width = IMG_WIDTH;
-            canvas.height = IMG_HEIGHT;
-            context.drawImage(image, 0, 0, IMG_WIDTH, IMG_HEIGHT);
-            setImageSrc(canvas.toDataURL());
-            
-            // PRE PROCESS
-            //console.time('pass through model')
-            const imageData = context.getImageData(0, 0, IMG_WIDTH, IMG_HEIGHT);
-            const pixels = imageData.data;
-            
-            // Convert base64 image to RGB tensor for the model
-            const red: number[] = [];
-            const green: number[] = [];
-            const blue: number[] = [];
-            for( let i = 0; i < pixels.length; i += 4 ) {
-              red.push(pixels[i] / 255.0);
-              green.push(pixels[i+1] / 255.0);
-              blue.push(pixels[i+2] / 255.0);
-            }
-
-            const input = [...red, ...green, ...blue];
-            // END PRE PROCESS
-
-            // RUN MODEL - model was already created once when the webcam was started
-            const model_input = new ort.Tensor(Float32Array.from(input), [1, 3, IMG_WIDTH, IMG_HEIGHT]);
-            const model_output = await MODEL.run({images: model_input});
-            const output = model_output["output0"].data;
-            // END RUN MODEL
-            
-            // POST PROCESS
-            let highest_probabilities: { [key: string]: number } = {};
-            for ( let i = 0; i < OUTPUT_TENSOR_SIZE; i++ ) {
-              const [class_id, prob] = [...Array(NUM_CLASSES).keys()]
-                    .map(col => [col, output[OUTPUT_TENSOR_SIZE*(col+4)+i]])
-                    .reduce((accum, item) => item[1]>accum[1] ? item : accum,[0,0]);
-              
-              if ( Number(prob) < CONFIDENCE_BOUND ) {
-                continue;
-              }
-              const label = yolo_classes[ Number(class_id) ];
-              // only return the highest confidence detection for each class
-              if( !(label in highest_probabilities) || Number(prob) > highest_probabilities[label] ) {
-                highest_probabilities[label] = Number(prob);
-              }
-            }
-            
-            let results: any[] = Object.entries(highest_probabilities);
-            results = results.sort((res1, res2) => res2[1]-res1[1]) // sort by probability
-            //console.timeEnd('pass through model')
-            console.log(results) // if no objects are detected, result.length == 0
-            setOutputArray(results)
-            // END POST PROCESS
-          }
-        };
-      }
-    } else {
-      console.error('Webcam reference not available');
-      // Add appropriate error handling or user feedback here
     }
-  };
+  });
 
   return (
     <div className="mx-auto max-w-lg p-6 bg-gray-100 rounded-lg shadow-md">
@@ -176,22 +56,15 @@ export default function App() {
     <button 
       className="block w-full py-2.5 px-5 mb-4 text-center text-gray-900 bg-gray-200 border border-gray-800 rounded-lg hover:bg-gray-900 hover:text-white focus:outline-none focus:ring-4 focus:ring-gray-300 font-medium"
       onClick={() => {
-        console.log('webcamState: ', webCamState);
-        setWebCamState(!webCamState)
-
-        setupOffscreenDocument('off_screen.html');
-        chrome.runtime.sendMessage({
-          type: 'webCamState',
-          target: 'off_screen.html',
-          webCamState: !webCamState
-        });
-
-        // Load the model once when the webcam button is pressed
-        (async () => {
-          MODEL = await loadModel();
-          console.log(`model loaded: ${MODEL}`);
-        })();
-
+        if(webCamState){
+          setWebCamState(false);
+          setFrameCaptureState(false);
+          chrome.runtime.sendMessage({ message: 'frameCaptureState', frameCaptureState: false });
+        }
+        else {
+          setWebCamState(true);
+        }
+        chrome.runtime.sendMessage({ message: 'webCamState', webCamState: !webCamState });
       }}>
       {webCamState ? 'Stop' : 'Start'} Webcam
     </button>
@@ -199,21 +72,19 @@ export default function App() {
     <button 
       className="block w-full py-2.5 px-5 mb-4 text-center text-white bg-blue-500 border border-blue-700 rounded-lg font-bold hover:bg-blue-700 focus:outline-none"
       onClick={() => {
-        if (webCamState && !frameCapture) {
-          console.log('webcamref: not in interval', webcamRef.current);
-          setFrameCapture(true); // HOOK here to start the frame capturing interval
-          // handleOnCapture(webcamRef.current!);
-          // chrome.runtime.sendMessage({ message: 'frameCapture', frameCapture: true });
+        if (webCamState && !frameCaptureState) {
+          setFrameCaptureState(true); 
+          chrome.runtime.sendMessage({ message: 'frameCaptureState', frameCaptureState: true });
         } else {
-          setFrameCapture(false);
-          // chrome.runtime.sendMessage({ message: 'frameCapture', frameCapture: false });
+          setFrameCaptureState(false);
+          chrome.runtime.sendMessage({ message: 'frameCaptureState', frameCaptureState: false });
         }
       }}>
-      {(webCamState && !frameCapture) ? 'Start' : 'Stop'} Frame Capture
+      {(frameCaptureState) ? 'Stop' : 'Start'} Frame Capture
     </button>
     <div className="flex items-center justify-center">
       {webCamState && <div className="mx-auto"><RenderWebcam webcamRef={webcamRef} /></div>}
-      {frameCapture && imageSrc && <img className="mx-auto" src={imageSrc} alt="Captured" />}
+      {frameCaptureState && imageSrc && <img className="mx-auto" src={imageSrc} alt="Captured" />}
     </div>
     <div className="flex justify-between">
       <button 
@@ -236,17 +107,6 @@ export default function App() {
   );
 };
 
-async function toggleCamera(setStream: (stream: MediaStream | null) => void, webCamState: boolean, stream: MediaStream | null) : Promise<void>{
-  if(webCamState){
-    stream?.getTracks().forEach((track: { stop: () => void; }) => {
-      track.stop();
-    });
-    setStream(null);
-  }
-  else {
-   setStream(await navigator.mediaDevices.getUserMedia({ audio: false, video: videoConstraints }));
-  }
-}
 
 function changeTabLeft() {
   chrome.tabs.query({ currentWindow: true }, (tabs) => {
