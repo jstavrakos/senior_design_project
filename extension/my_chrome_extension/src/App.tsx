@@ -47,6 +47,7 @@ const IMG_WIDTH = 480;
 // Constants for the model - analyze model_output to see the tensor shape
 const NUM_CLASSES = 5;
 const OUTPUT_TENSOR_SIZE = 4725;
+const CONFIDENCE_BOUND = 0.1;
 
 // Class Labels
 const yolo_classes = [
@@ -144,7 +145,7 @@ export default function App() {
                     .map(col => [col, output[OUTPUT_TENSOR_SIZE*(col+4)+i]])
                     .reduce((accum, item) => item[1]>accum[1] ? item : accum,[0,0]);
               
-              if ( Number(prob) < 0.25 ) {
+              if ( Number(prob) < CONFIDENCE_BOUND ) {
                 continue;
               }
               const label = yolo_classes[ Number(class_id) ];
