@@ -1,4 +1,5 @@
 # Manus Webcam Utility
+<img align="right" width="200" height="200" src="https://raw.githubusercontent.com/jstavrakos/senior_design_project/main/extension/my_chrome_extension/public/hand.png">
 
 ## Team Members
 1. Jack Stavrakos
@@ -33,5 +34,4 @@ Select the 'dist' folder created in the previous step. The extension will now be
 Refer to `user_manual.md` for the currently supported actions. Additional information can be seen using Chrome Developer Tools. If you add any additional code that you would like to test, repeat steps 3-5.
 
 ## Our Model
-link Roboflow page when finished
-
+For the final version of our product, we fine-tuned a YOLOv8n model to detect 5 hand symbols. This was done by collecting and labelling our own dataset. A link to this public dataset can be found [here](https://universe.roboflow.com/jstavrakos/manuswebcamutilitycustommodel).
