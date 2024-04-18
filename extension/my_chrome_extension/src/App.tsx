@@ -43,7 +43,7 @@ export default function App() {
 
   // Listen for messages from the background script
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    if (sender.id === 'hljhapmlbiiediilmbgekaeobfplpjpc' && message.message !== undefined) {
+    if (message.message !== undefined) {
       if (message.message === 'frameCaptureState') {
         setOutputArray(message.results);
       }

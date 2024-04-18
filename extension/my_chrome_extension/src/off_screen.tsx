@@ -6,23 +6,21 @@ let MODEL: ort.InferenceSession;
 var webCamState = false;
 var frameCaptureState = false;
 
+// Webcam Time Interval
+const WEBCAM_INTERVAL = 300;
+
 // Constants for model input
 const IMG_HEIGHT = 480;
 const IMG_WIDTH = 480;
 
 // Constants for the model
-const NUM_CLASSES = 80;
+const NUM_CLASSES = 5;
 const OUTPUT_TENSOR_SIZE = 4725;
+const CONFIDENCE_BOUND = 0.1;
 
+// Class Labels
 const yolo_classes = [
-  'person', 'bicycle', 'car', 'motorcycle', 'airplane', 'bus', 'train', 'truck', 'boat',
-  'traffic light', 'fire hydrant', 'stop sign', 'parking meter', 'bench', 'bird', 'cat', 'dog', 'horse',
-  'sheep', 'cow', 'elephant', 'bear', 'zebra', 'giraffe', 'backpack', 'umbrella', 'handbag', 'tie', 'suitcase',
-  'frisbee', 'skis', 'snowboard', 'sports ball', 'kite', 'baseball bat', 'baseball glove', 'skateboard',
-  'surfboard', 'tennis racket', 'bottle', 'wine glass', 'cup', 'fork', 'knife', 'spoon', 'bowl', 'banana', 'apple',
-  'sandwich', 'orange', 'broccoli', 'carrot', 'hot dog', 'pizza', 'donut', 'cake', 'chair', 'couch', 'potted plant',
-  'bed', 'dining table', 'toilet', 'tv', 'laptop', 'mouse', 'remote', 'keyboard', 'cell phone', 'microwave', 'oven',
-  'toaster', 'sink', 'refrigerator', 'book', 'clock', 'vase', 'scissors', 'teddy bear', 'hair drier', 'toothbrush'
+  '1', '2', '3', '4', '5'
 ];
 
 ort.env.wasm.numThreads = 1;
@@ -33,7 +31,7 @@ var frameCaptureInterval: any = null;
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   // Check if the message is from app.js
   console.log('off_screen.ts message: ', message);
-  if (sender.id === 'hljhapmlbiiediilmbgekaeobfplpjpc' && message.message !== undefined) {
+  if (message.message !== undefined) {
     // Check if the message contains the webcamState property
     if((message.message === ('useEffect'))){
       const response = {webCamState: webCamState, frameCaptureState: frameCaptureState};
@@ -65,7 +63,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             chrome.runtime.sendMessage(response);
             // sendResponse(response);
           });
-        }, 300);
+        }, WEBCAM_INTERVAL);
       }
       else {
         clearInterval(frameCaptureInterval);
@@ -96,7 +94,7 @@ function startWebcam() {
         videoElement.style.left = '0';
         
         // Adjust the size as needed
-        videoElement.style.width = '150'; 
+        videoElement.style.width = '150';
         videoElement.style.height = '150';
 
         // Append the video element to the page
@@ -127,7 +125,7 @@ function stopWebcam() {
 
 function loadModel() {
     if (MODEL === undefined) {
-       ort.InferenceSession.create('./yolov8n.onnx', {
+       ort.InferenceSession.create('./custom.onnx', {
             executionProviders: ['wasm'],
             graphOptimizationLevel: 'all'
         }).then((model) => {
@@ -172,26 +170,28 @@ async function handleOnCapture (): Promise<any> {
 
         // RUN MODEL - model was already created once when the webcam was started
         const model_input = new ort.Tensor(Float32Array.from(input), [1, 3, IMG_WIDTH, IMG_HEIGHT]);
-
         const model_output = await MODEL.run({images: model_input});
-
         const output = model_output["output0"].data;
         // END RUN MODEL
         
         // POST PROCESS
-        let results: any[] = [];
+        let highest_probabilities: { [key: string]: number } = {};
         for ( let i = 0; i < OUTPUT_TENSOR_SIZE; i++ ) {
           const [class_id, prob] = [...Array(NUM_CLASSES).keys()]
                 .map(col => [col, output[OUTPUT_TENSOR_SIZE*(col+4)+i]])
                 .reduce((accum, item) => item[1]>accum[1] ? item : accum,[0,0]);
           
-          if ( Number(prob) < 0.5 ) {
+          if ( Number(prob) < CONFIDENCE_BOUND ) {
             continue;
           }
           const label = yolo_classes[ Number(class_id) ];
-          results.push([label, prob])
+          // only return the highest confidence detection for each class
+          if( !(label in highest_probabilities) || Number(prob) > highest_probabilities[label] ) {
+            highest_probabilities[label] = Number(prob);
+          }
         }
 
+        let results: any[] = Object.entries(highest_probabilities);
         results = results.sort((res1, res2) => res2[1]-res1[1]) // sort by probability
         //console.timeEnd('pass through model')
         console.log(results) // if no objects are detected, result.length == 0
