@@ -4,7 +4,6 @@ import * as ort from 'onnxruntime-web';
 let MODEL: ort.InferenceSession;
 // Listen for messages from the Chrome runtime
 var webCamState = false;
-var frameCaptureState = false;
 
 // Webcam Time Interval
 const WEBCAM_INTERVAL = 300;
@@ -26,7 +25,10 @@ const yolo_classes = [
 ort.env.wasm.numThreads = 1;
 
 var frameCaptureInterval: any = null;
+var popupWindow: boolean = false;
 
+// Load the model when the off-screen script is loaded
+loadModel();
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   // Check if the message is from app.js
@@ -34,8 +36,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.message !== undefined) {
     // Check if the message contains the webcamState property
     if((message.message === ('useEffect'))){
-      const response = {webCamState: webCamState, frameCaptureState: frameCaptureState};
-      console.log('useEffect response: ', response);
+      popupWindow = true;
+
+      const response = {webCamState: webCamState};
       sendResponse(response);
     }
     if (message.message === ('webCamState')) {
@@ -43,31 +46,23 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       if (webCamState === true) {
         // Start the webcam
         startWebcam();
-        loadModel();
-
+        console.log('webcam started');
+        frameCaptureInterval = setInterval(() => {
+          handleOnCapture().then((results) => {
+            let response = {message : 'frameCaptureState', results: null};
+            response.results = results;
+            if(popupWindow){
+              chrome.runtime.sendMessage(response).catch((error) => {
+                console.error(error);
+                popupWindow = false;
+              });
+            }
+          });
+        }, WEBCAM_INTERVAL);
       } else {
         // Stop the webcam
         stopWebcam();
-      }
-    }
-    if (message.message === ('frameCaptureState')) {
-      frameCaptureState = message.frameCaptureState;
-      if(frameCaptureState === true) {
-        let response = {message : 'frameCaptureState', results: null};
-
-        // response.results = handleOnCapture();
-        frameCaptureInterval = setInterval(() => {
-          handleOnCapture().then((results) => {
-            response.results = results;
-            console.log('model_input response from off_screen: ', response);
-            chrome.runtime.sendMessage(response);
-            // sendResponse(response);
-          });
-        }, WEBCAM_INTERVAL);
-      }
-      else {
         clearInterval(frameCaptureInterval);
-        console.log('Frame capture state is off');
       }
     }
   }
@@ -80,7 +75,6 @@ function startWebcam() {
   if(stream == null){
     
     console.log('Starting webcam');
-    console.log('stream: ', stream);
     navigator.mediaDevices.getUserMedia({ video: true })
       .then((streamObj) => {
         stream = streamObj;
@@ -124,14 +118,12 @@ function stopWebcam() {
 }
 
 function loadModel() {
-    if (MODEL === undefined) {
        ort.InferenceSession.create('./custom.onnx', {
             executionProviders: ['wasm'],
             graphOptimizationLevel: 'all'
         }).then((model) => {
             MODEL = model;
         });
-    }
 }
 
 async function handleOnCapture (): Promise<any> {
@@ -204,3 +196,28 @@ async function handleOnCapture (): Promise<any> {
     // Add appropriate error handling or user feedback here
   }
 };
+
+
+function changeTabLeft() {
+  chrome.tabs.query({ currentWindow: true }, (tabs) => {
+    chrome.tabs.query({ active: true, currentWindow: true }, (currentTab) => {
+      const currentIndex = tabs.findIndex((tab) => tab.id === currentTab[0].id);
+      const newIndex = (currentIndex - 1 + tabs.length) % tabs.length;
+      if (tabs[newIndex].id !== undefined) {
+        chrome.tabs.update(tabs[newIndex].id!, { active: true });
+      }
+    });
+  });
+}
+
+function changeTabRight() {
+  chrome.tabs.query({ currentWindow: true }, (tabs) => {
+    chrome.tabs.query({ active: true, currentWindow: true }, (currentTab) => {
+      const currentIndex = tabs.findIndex((tab) => tab.id === currentTab[0].id);
+      const newIndex = (currentIndex + 1) % tabs.length;
+      if (tabs[newIndex].id !== undefined) {
+        chrome.tabs.update(tabs[newIndex].id!, { active: true });
+      }
+    });
+  });
+}

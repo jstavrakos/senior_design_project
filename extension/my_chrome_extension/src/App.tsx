@@ -14,16 +14,18 @@ enum FacingMode {
   ENVIRONMENT = 'environment',
 }
 
+// Constants for model input
+const IMG_HEIGHT = 150;
+const IMG_WIDTH = 150;
+
 const videoConstraints: VideoConstraints = {
-  width: 150,
-  height: 150,
+  height: IMG_HEIGHT,
+  width: IMG_WIDTH,
   facingMode: FacingMode.USER,
 }
 
 export default function App() {
   const [webCamState, setWebCamState] = useState(false);
-  const [frameCaptureState, setFrameCaptureState] = useState(false);
-  const [imageSrc, setImageSrc] = useState<string | null>(null); // Image source not displayed anymore as data is sent to off_screen.tsx
   const [outputArray, setOutputArray] = useState< number[]| null>(null);
   const webcamRef = createRef<Webcam>();
 
@@ -34,9 +36,6 @@ export default function App() {
       console.log('Response from off_screen.js:', response);
       if (response && response.webCamState !== undefined) {
         setWebCamState(response.webCamState);
-      }
-      if (response && response.frameCaptureState !== undefined) {
-        setFrameCaptureState(response.frameCaptureState);
       }
     });
   }, []);
@@ -50,95 +49,42 @@ export default function App() {
     }
   });
 
+
   return (
     <div className="mx-auto max-w-lg p-6 bg-gray-100 rounded-lg shadow-md">
-    <h1 className="text-3xl font-semibold text-center mb-6">Welcome to the Gesture App</h1>
-    <button 
-      className="block w-full py-2.5 px-5 mb-4 text-center text-gray-900 bg-gray-200 border border-gray-800 rounded-lg hover:bg-gray-900 hover:text-white focus:outline-none focus:ring-4 focus:ring-gray-300 font-medium"
-      onClick={() => {
-        if(webCamState){
-          setWebCamState(false);
-          setFrameCaptureState(false);
-          chrome.runtime.sendMessage({ message: 'frameCaptureState', frameCaptureState: false });
-        }
-        else {
-          setWebCamState(true);
-        }
-        chrome.runtime.sendMessage({ message: 'webCamState', webCamState: !webCamState });
-      }}>
-      {webCamState ? 'Stop' : 'Start'} Webcam
-    </button>
-    <br />
-    <button 
-      className="block w-full py-2.5 px-5 mb-4 text-center text-white bg-blue-500 border border-blue-700 rounded-lg font-bold hover:bg-blue-700 focus:outline-none"
-      onClick={() => {
-        if (webCamState && !frameCaptureState) {
-          setFrameCaptureState(true); 
-          chrome.runtime.sendMessage({ message: 'frameCaptureState', frameCaptureState: true });
-        } else {
-          setFrameCaptureState(false);
-          chrome.runtime.sendMessage({ message: 'frameCaptureState', frameCaptureState: false });
-        }
-      }}>
-      {(frameCaptureState) ? 'Stop' : 'Start'} Frame Capture
-    </button>
-    <div className="flex items-center justify-center">
-      {webCamState && <div className="mx-auto"><RenderWebcam webcamRef={webcamRef} /></div>}
-      {frameCaptureState && imageSrc && <img className="mx-auto" src={imageSrc} alt="Captured" />}
-    </div>
-    <div className="flex justify-between">
+      <h1 className="text-3xl font-semibold text-center mb-6">Gesture Recognition</h1>
       <button 
-        className="text-blue-700 hover:text-white border border-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center mb-2 dark:border-blue-500 dark:text-blue-500 dark:hover:text-white dark:hover:bg-blue-500 dark:focus:ring-blue-800"
-        onClick={changeTabLeft}>
-        Left
+        className="block w-full py-2.5 px-5 mb-4 text-center text-gray-900 bg-gray-200 border border-gray-800 rounded-lg hover:bg-gray-900 hover:text-white focus:outline-none focus:ring-4 focus:ring-gray-300 font-medium"
+        onClick={() => {
+          if(webCamState){
+            setWebCamState(false);
+          }
+          else {
+            setWebCamState(true);
+          }
+          chrome.runtime.sendMessage({ message: 'webCamState', webCamState: !webCamState });
+        }}>
+        {webCamState ? 'Stop' : 'Start'} Webcam
       </button>
-      <button 
-        className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
-        onClick={changeTabRight}>
-        Right
-      </button>
-    </div>
-    {outputArray && (
-      <div className="mt-4">
-        <p>Highest Confidence Object Detected Class: {outputArray[0]}</p>
+      <div className="flex items-center justify-center">
+        {webCamState && <div className="mx-auto"><RenderWebcam webcamRef={webcamRef} /></div>}
       </div>
-    )}
+      {outputArray && (
+        <div className="mt-4">
+          <p>Highest Confidence Object Detected Class: {outputArray[0]}</p>
+        </div>
+      )}
   </div>  
   );
 };
-
-
-function changeTabLeft() {
-  chrome.tabs.query({ currentWindow: true }, (tabs) => {
-    chrome.tabs.query({ active: true, currentWindow: true }, (currentTab) => {
-      const currentIndex = tabs.findIndex((tab) => tab.id === currentTab[0].id);
-      const newIndex = (currentIndex - 1 + tabs.length) % tabs.length;
-      if (tabs[newIndex].id !== undefined) {
-        chrome.tabs.update(tabs[newIndex].id!, { active: true });
-      }
-    });
-  });
-}
-
-function changeTabRight() {
-  chrome.tabs.query({ currentWindow: true }, (tabs) => {
-    chrome.tabs.query({ active: true, currentWindow: true }, (currentTab) => {
-      const currentIndex = tabs.findIndex((tab) => tab.id === currentTab[0].id);
-      const newIndex = (currentIndex + 1) % tabs.length;
-      if (tabs[newIndex].id !== undefined) {
-        chrome.tabs.update(tabs[newIndex].id!, { active: true });
-      }
-    });
-  });
-}
 
 function RenderWebcam(props: { webcamRef: RefObject<Webcam> }) {
   return (
     <div>
       <Webcam
         audio={false}
-        minScreenshotHeight={150}
-        minScreenshotWidth={150}
+        minScreenshotHeight={IMG_HEIGHT}
+        minScreenshotWidth={IMG_WIDTH}
         screenshotFormat="image/jpeg"
         videoConstraints={videoConstraints}
         ref={props.webcamRef}
