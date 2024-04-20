@@ -1,9 +1,12 @@
 import * as ort from 'onnxruntime-web';
+import { useState } from 'react';
 
 // Global variable and function for the model which will only be loaded once
 let MODEL: ort.InferenceSession;
+
 // Listen for messages from the Chrome runtime
 var webCamState = false;
+// let [webCamState, setWebCamState] = useState(false);
 
 // Webcam Time Interval
 const WEBCAM_INTERVAL = 300;
@@ -30,6 +33,10 @@ var popupWindow: boolean = false;
 // Load the model when the off-screen script is loaded
 loadModel();
 
+// Mapping for the inferece events
+var mapping: any = {A1 : '', A2: '', A3: '', A4: '', A5: ''};
+// let [mapping, setMapping] = useState({});
+
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   // Check if the message is from app.js
   console.log('off_screen.ts message: ', message);
@@ -38,17 +45,19 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if((message.message === ('useEffect'))){
       popupWindow = true;
 
-      const response = {webCamState: webCamState};
+      const response = {webCamState: webCamState, mappings: mapping};
       sendResponse(response);
     }
     if (message.message === ('webCamState')) {
       webCamState = message.webCamState;
+      // setWebCamState(webCamState);
       if (webCamState === true) {
         // Start the webcam
         startWebcam();
         console.log('webcam started');
         frameCaptureInterval = setInterval(() => {
           handleOnCapture().then((results) => {
+            
             let response = {message : 'frameCaptureState', results: null};
             response.results = results;
             if(popupWindow){
@@ -58,12 +67,19 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
               });
             }
           });
+          console.log('mapping:', mapping);
         }, WEBCAM_INTERVAL);
       } else {
         // Stop the webcam
         stopWebcam();
         clearInterval(frameCaptureInterval);
       }
+    }
+    if (message.message === ('updateMapping')) {
+      mapping[message.action] = message.api;
+      console.log('mapping:', mapping);
+      // setMapping(message.mappings);
+
     }
   }
 });
@@ -128,8 +144,6 @@ function loadModel() {
 
 async function handleOnCapture (): Promise<any> {
   if (videoElement && MODEL) {
-    // const capturedImageSrc = videoElement.src;
-    // webcamRef.current.getScreenshot({width: 150, height: 150});
 
     const image = new Image();
     if (videoElement){
@@ -197,6 +211,13 @@ async function handleOnCapture (): Promise<any> {
   }
 };
 
+// chrome.storage.onChanged.addListener((changes, area) => {
+//   console.log('Changes:', changes, 'Area:', area);
+//   if (area === 'sync' && changes.mapping?.newValue){
+//     mapping = changes.mapping.newValue;
+//     // setMapping(changes.mapping.newValue);
+//   }
+// });
 
 function changeTabLeft() {
   chrome.tabs.query({ currentWindow: true }, (tabs) => {

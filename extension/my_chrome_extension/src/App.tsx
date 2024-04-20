@@ -1,4 +1,4 @@
-import { useState, useEffect, RefObject, createRef } from 'react';
+import { useState, useEffect, RefObject, createRef, JSXElementConstructor, Key, ReactElement, ReactNode } from 'react';
 import Webcam from "react-webcam";
 
 // Interface for video constraints with type safety
@@ -26,8 +26,10 @@ const videoConstraints: VideoConstraints = {
 
 export default function App() {
   const [webCamState, setWebCamState] = useState(false);
+  const [mappings, setMappings] = useState({A1 : '', A2: '', A3: '', A4: '', A5: ''});
   const [outputArray, setOutputArray] = useState< number[]| null>(null);
   const webcamRef = createRef<Webcam>();
+  const APIactions = ['1', '2', '3', '4', '5'];
 
   // Update the webcam state and frame capture state from the background script
   useEffect(() => {
@@ -36,6 +38,12 @@ export default function App() {
       console.log('Response from off_screen.js:', response);
       if (response && response.webCamState !== undefined) {
         setWebCamState(response.webCamState);
+      }
+      if (response && response.mappings !== undefined) {
+        setMappings(response.mappings);
+      }
+      if (response && response.mapping !== undefined) {
+        setMappings(response.mapping);
       }
     });
   }, []);
@@ -46,9 +54,11 @@ export default function App() {
       if (message.message === 'frameCaptureState') {
         setOutputArray(message.results);
       }
+      if (message.message === 'mappings') {
+        setMappings(message.mappings);
+      }
     }
   });
-
 
   return (
     <div className="mx-auto max-w-lg p-6 bg-gray-100 rounded-lg shadow-md">
@@ -74,6 +84,10 @@ export default function App() {
           <p>Highest Confidence Object Detected Class: {outputArray[0]}</p>
         </div>
       )}
+      <ActionAPIMapper
+        initMapping={mappings}
+        APIactions={APIactions}
+      />
   </div>  
   );
 };
@@ -92,6 +106,45 @@ function RenderWebcam(props: { webcamRef: RefObject<Webcam> }) {
     </div>
   );
 }
+
+const ActionAPIMapper = ({ initMapping, APIactions }: any) => {
+  const [mapping, setMapping] = useState(initMapping);
+
+  const handleMappingChange = (action: any, api: any) => {
+    chrome.runtime.sendMessage({ message: 'updateMapping', action, api });
+    setMapping((prevMapping: any) => ({
+      ...prevMapping,
+      [action]: api,
+    }));
+  };
+
+  return (
+    <div>
+      <h2>Actions to APIs Mapper</h2>
+      <div>
+        {Object.entries(mapping).map(([action, api]) => (
+          <div key={action}>
+            <label htmlFor={action}>{action}</label>
+            <select
+              id={action}
+              value={String(api)}
+              onChange={(e) => handleMappingChange(action, e.target.value)}
+            >
+              <option value="">Select API</option>
+              {APIactions.map((apiAction: any) => (
+                <option key={apiAction} value={apiAction}>{apiAction}</option>
+              ))}
+            </select>
+          </div>
+        ))}
+      </div>
+      <div>
+        <h3>Current Mapping</h3>
+        <pre>{JSON.stringify(mapping, null, 2)}</pre>
+      </div>
+    </div>
+  );
+};
 
 let creating: (Promise<void>) | null; // A global promise to avoid concurrency issues
 async function setupOffscreenDocument(path: string) {
