@@ -40,10 +40,8 @@ export default function App() {
         setWebCamState(response.webCamState);
       }
       if (response && response.mappings !== undefined) {
+        console.log('Mappings:', response.mappings);
         setMappings(response.mappings);
-      }
-      if (response && response.mapping !== undefined) {
-        setMappings(response.mapping);
       }
     });
   }, []);
@@ -53,9 +51,6 @@ export default function App() {
     if (message.message !== undefined) {
       if (message.message === 'frameCaptureState') {
         setOutputArray(message.results);
-      }
-      if (message.message === 'mappings') {
-        setMappings(message.mappings);
       }
     }
   });
@@ -109,6 +104,15 @@ function RenderWebcam(props: { webcamRef: RefObject<Webcam> }) {
 
 const ActionAPIMapper = ({ initMapping, APIactions }: any) => {
   const [mapping, setMapping] = useState(initMapping);
+
+  useEffect(() => {
+    chrome.runtime.sendMessage({ message: 'useEffect'}, function(response) {
+      if (response && response.mappings !== undefined) {
+        console.log('Mappings:', response.mappings);
+        setMapping(response.mappings);
+      }
+    });
+  }, []);
 
   const handleMappingChange = (action: any, api: any) => {
     chrome.runtime.sendMessage({ message: 'updateMapping', action, api });

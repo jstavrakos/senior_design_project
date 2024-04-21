@@ -60,6 +60,28 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             
             let response = {message : 'frameCaptureState', results: null};
             response.results = results;
+            if(results.length != 0) {
+              switch(results[0][0]){
+                case '1':
+                  console.log('API 1 HAPPENED')
+                  console.log(mapping.A1)
+                  break;
+                case '2':
+                  console.log('API 2 HAPPENED')
+                  break;
+                case '3':
+                  console.log('API 3 HAPPENED')
+                  break;
+                case '4':
+                  console.log('API 4 HAPPENED')
+                  break;
+                case '5':
+                  console.log('API 5 HAPPENED')
+                  break;
+                default:
+                  break;
+              }
+            }
             if(popupWindow){
               chrome.runtime.sendMessage(response).catch((error) => {
                 console.error(error);
@@ -67,7 +89,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
               });
             }
           });
-          console.log('mapping:', mapping);
+          console.log('mapping inside interval:', mapping);
         }, WEBCAM_INTERVAL);
       } else {
         // Stop the webcam
@@ -77,7 +99,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
     if (message.message === ('updateMapping')) {
       mapping[message.action] = message.api;
-      console.log('mapping:', mapping);
+      console.log('mapping update:', mapping);
       // setMapping(message.mappings);
 
     }
