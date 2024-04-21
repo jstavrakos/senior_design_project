@@ -26,7 +26,7 @@ const videoConstraints: VideoConstraints = {
 
 export default function App() {
   const [webCamState, setWebCamState] = useState(false);
-  const [mappings, setMappings] = useState({A1 : '', A2: '', A3: '', A4: '', A5: ''});
+  const [mappings, setMappings] = useState({1 : '', 2: '', 3: '', 4: '', 5: ''});
   const [outputArray, setOutputArray] = useState< number[]| null>(null);
   const webcamRef = createRef<Webcam>();
   const APIactions = ['1', '2', '3', '4', '5'];
@@ -178,67 +178,3 @@ async function setupOffscreenDocument(path: string) {
   }
 }
 
-function perform_action(action: number) {
-  chrome.tabs.query({ currentWindow: true }, (tabs) => {
-    chrome.tabs.query({ active: true, currentWindow: true }, (currentTab) => {
-      const currentIndex = tabs.findIndex((tab) => tab.id === currentTab[0].id);
-
-      switch (action) {
-        case 0: { // switch tab left
-          const newIndex = (currentIndex - 1 + tabs.length) % tabs.length;
-          if (tabs[newIndex].id !== undefined) {
-            chrome.tabs.update(tabs[newIndex].id!, { active: true });
-          }
-          break; 
-        }
-        case 1: { // switch tab right
-          const newIndex = (currentIndex + 1) % tabs.length;
-          if (tabs[newIndex].id !== undefined) {
-            chrome.tabs.update(tabs[newIndex].id!, { active: true });
-          } 
-          break; 
-        }
-        case 2: { // go backwards in tab history
-          if (tabs[currentIndex].id !== undefined) {
-            chrome.tabs.goBack(tabs[currentIndex].id!);
-          }
-          break; 
-        }
-        case 3: { // go forwards in tab history
-          if (tabs[currentIndex].id !== undefined) {
-            chrome.tabs.goForward(tabs[currentIndex].id!);
-          }
-          break; 
-        }
-        case 4: { // refresh tab
-          if (tabs[currentIndex].id !== undefined) {
-            chrome.tabs.reload(tabs[currentIndex].id!);
-          }
-          break
-        }
-        case 5: { // toggle tab mute status
-          if (tabs[currentIndex].id !== undefined) {
-            if (tabs[currentIndex].mutedInfo!.muted) {
-              chrome.tabs.update(tabs[currentIndex].id!, { muted: false });
-            } else {
-              chrome.tabs.update(tabs[currentIndex].id!, { muted: true });
-            }
-          }
-          break; 
-        }
-        case 6: { // create new tab
-          chrome.tabs.create({ active : true });
-          break; 
-        }
-        case 7: { // remove current tab
-          const newIndex = (currentIndex + 1) % tabs.length;
-          if (tabs[newIndex].id !== undefined) {
-            chrome.tabs.update(tabs[newIndex].id!, { active: true });
-            chrome.tabs.remove(tabs[currentIndex].id!); 
-          }
-          break; 
-        }
-      }
-    });
-  });
-}

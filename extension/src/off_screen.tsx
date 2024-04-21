@@ -1,3 +1,4 @@
+import { get } from 'http';
 import * as ort from 'onnxruntime-web';
 import { useState } from 'react';
 
@@ -34,7 +35,7 @@ var popupWindow: boolean = false;
 loadModel();
 
 // Mapping for the inferece events
-var mapping: any = {A1 : '', A2: '', A3: '', A4: '', A5: ''};
+var mapping: any = {1 : '', 2: '', 3: '', 4: '', 5: ''};
 // let [mapping, setMapping] = useState({});
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -61,26 +62,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             let response = {message : 'frameCaptureState', results: null};
             response.results = results;
             if(results.length != 0) {
-              switch(results[0][0]){
-                case '1':
-                  console.log('API 1 HAPPENED')
-                  console.log(mapping.A1)
-                  break;
-                case '2':
-                  console.log('API 2 HAPPENED')
-                  break;
-                case '3':
-                  console.log('API 3 HAPPENED')
-                  break;
-                case '4':
-                  console.log('API 4 HAPPENED')
-                  break;
-                case '5':
-                  console.log('API 5 HAPPENED')
-                  break;
-                default:
-                  break;
-              }
+              console.log("mapping resul: ", mapping[results[0][0]]);
+              perform_action(parseInt(mapping[results[0][0]]));
             }
             if(popupWindow){
               chrome.runtime.sendMessage(response).catch((error) => {
@@ -240,6 +223,81 @@ async function handleOnCapture (): Promise<any> {
 //     // setMapping(changes.mapping.newValue);
 //   }
 // });
+
+function perform_action(action: number) {
+  chrome.tabs.query({ currentWindow: true }, (tabs) => {
+    chrome.tabs.query({ active: true, currentWindow: true }, (currentTab) => {
+      
+      const currentIndex = tabs.findIndex((tab) => tab.id === currentTab[0].id);
+      // const currentIndex = getCurrentTab();
+
+      console.log('action:', action);
+      switch (action) {
+        case 0: { // switch tab left
+          const newIndex = (currentIndex - 1 + tabs.length) % tabs.length;
+          if (tabs[newIndex].id !== undefined) {
+            chrome.tabs.update(tabs[newIndex].id!, { active: true });
+          }
+          break; 
+        }
+        case 1: { // switch tab right
+          const newIndex = (currentIndex + 1) % tabs.length;
+          if (tabs[newIndex].id !== undefined) {
+            chrome.tabs.update(tabs[newIndex].id!, { active: true });
+          } 
+          break; 
+        }
+        case 2: { // go backwards in tab history
+          if (tabs[currentIndex].id !== undefined) {
+            chrome.tabs.goBack(tabs[currentIndex].id!);
+          }
+          break; 
+        }
+        case 3: { // go forwards in tab history
+          if (tabs[currentIndex].id !== undefined) {
+            chrome.tabs.goForward(tabs[currentIndex].id!);
+          }
+          break; 
+        }
+        case 4: { // refresh tab
+          if (tabs[currentIndex].id !== undefined) {
+            chrome.tabs.reload(tabs[currentIndex].id!);
+          }
+          break
+        }
+        case 5: { // toggle tab mute status
+          if (tabs[currentIndex].id !== undefined) {
+            if (tabs[currentIndex].mutedInfo!.muted) {
+              chrome.tabs.update(tabs[currentIndex].id!, { muted: false });
+            } else {
+              chrome.tabs.update(tabs[currentIndex].id!, { muted: true });
+            }
+          }
+          break; 
+        }
+        case 6: { // create new tab
+          chrome.tabs.create({ active : true });
+          break; 
+        }
+        case 7: { // remove current tab
+          const newIndex = (currentIndex + 1) % tabs.length;
+          if (tabs[newIndex].id !== undefined) {
+            chrome.tabs.update(tabs[newIndex].id!, { active: true });
+            chrome.tabs.remove(tabs[currentIndex].id!); 
+          }
+          break; 
+        }
+      }
+    });
+  });
+}
+
+async function getCurrentTab(): Promise<chrome.tabs.Tab | undefined> {
+  let queryOptions = { active: true, lastFocusedWindow: true };
+  // `tab` will either be a `tabs.Tab` instance or `undefined`.
+  let [tab] = await chrome.tabs.query(queryOptions);
+  return tab;
+}
 
 function changeTabLeft() {
   chrome.tabs.query({ currentWindow: true }, (tabs) => {
