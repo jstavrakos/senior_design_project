@@ -1,5 +1,5 @@
 # Manus Webcam Utility
-<img align="right" width="200" height="200" src="https://raw.githubusercontent.com/jstavrakos/senior_design_project/main/extension/my_chrome_extension/public/hand.png">
+<img align="right" width="200" height="200" src="https://raw.githubusercontent.com/jstavrakos/senior_design_project/main/extension/public/hand.png">
 
 ## Team Members
 1. Jack Stavrakos
