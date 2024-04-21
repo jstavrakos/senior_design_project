@@ -74,8 +74,7 @@ module.exports = {
                 // {from: './src/options.js', to: 'options.js'},
                 {from: './public/hand.png', to: 'hand.png'},
                 {from: './public/manifest.json', to: 'manifest.json'},
-                //{from: './src/mvp_model.onnx', to: 'mvp_model.onnx'},
-                {from: './src/yolov8n.onnx', to: 'yolov8n.onnx'},
+                {from: './src/custom.onnx', to: 'custom.onnx'},
                 {from: './node_modules/onnxruntime-web/dist/*.wasm', to: '[name][ext]'}
             ],
         }),

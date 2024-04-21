@@ -1,8 +1,5 @@
-import React, { useState, useRef, useEffect, RefObject, createRef } from 'react';
+import { useState, useEffect, RefObject, createRef, JSXElementConstructor, Key, ReactElement, ReactNode } from 'react';
 import Webcam from "react-webcam";
-import * as Jimp from 'jimp'
-import * as ort from 'onnxruntime-web';
-import { Tensor } from 'onnxruntime-web';
 
 // Interface for video constraints with type safety
 interface VideoConstraints {
@@ -17,152 +14,75 @@ enum FacingMode {
   ENVIRONMENT = 'environment',
 }
 
+// Constants for model input
+const IMG_HEIGHT = 150;
+const IMG_WIDTH = 150;
+
 const videoConstraints: VideoConstraints = {
-  width: 150,
-  height: 150,
+  height: IMG_HEIGHT,
+  width: IMG_WIDTH,
   facingMode: FacingMode.USER,
 }
 
-// Constants for model input
-const IMG_HEIGHT = 480;
-const IMG_WIDTH = 480;
-
-// Constants for the model
-const NUM_CLASSES = 80;
-const OUTPUT_TENSOR_SIZE = 4725;
-
-// Class Labels
-const yolo_classes = [
-  'person', 'bicycle', 'car', 'motorcycle', 'airplane', 'bus', 'train', 'truck', 'boat',
-  'traffic light', 'fire hydrant', 'stop sign', 'parking meter', 'bench', 'bird', 'cat', 'dog', 'horse',
-  'sheep', 'cow', 'elephant', 'bear', 'zebra', 'giraffe', 'backpack', 'umbrella', 'handbag', 'tie', 'suitcase',
-  'frisbee', 'skis', 'snowboard', 'sports ball', 'kite', 'baseball bat', 'baseball glove', 'skateboard',
-  'surfboard', 'tennis racket', 'bottle', 'wine glass', 'cup', 'fork', 'knife', 'spoon', 'bowl', 'banana', 'apple',
-  'sandwich', 'orange', 'broccoli', 'carrot', 'hot dog', 'pizza', 'donut', 'cake', 'chair', 'couch', 'potted plant',
-  'bed', 'dining table', 'toilet', 'tv', 'laptop', 'mouse', 'remote', 'keyboard', 'cell phone', 'microwave', 'oven',
-  'toaster', 'sink', 'refrigerator', 'book', 'clock', 'vase', 'scissors', 'teddy bear', 'hair drier', 'toothbrush'
-];
-
 export default function App() {
   const [webCamState, setWebCamState] = useState(false);
-  const [frameCapture, setFrameCapture] = useState(false);
-  const [imageSrc, setImageSrc] = useState<string | null>(null);
+  const [mappings, setMappings] = useState({A1 : '', A2: '', A3: '', A4: '', A5: ''});
   const [outputArray, setOutputArray] = useState< number[]| null>(null);
-  const [stream, setStream] = useState<MediaStream | null>(null);
   const webcamRef = createRef<Webcam>();
-  const frameCaptureInterval = useRef<NodeJS.Timeout | null>(null);
+  const APIactions = ['1', '2', '3', '4', '5'];
 
-  ort.env.wasm.numThreads = 1;
-
-
+  // Update the webcam state and frame capture state from the background script
   useEffect(() => {
     setupOffscreenDocument('off_screen.html');
-    chrome.runtime.sendMessage({ useEffect: true }, function(response) {
+    chrome.runtime.sendMessage({ message: 'useEffect'}, function(response) {
       console.log('Response from off_screen.js:', response);
       if (response && response.webCamState !== undefined) {
         setWebCamState(response.webCamState);
       }
+      if (response && response.mappings !== undefined) {
+        console.log('Mappings:', response.mappings);
+        setMappings(response.mappings);
+      }
     });
   }, []);
 
-  // Start/stop the interval when frameCapture or webcamRef.current changes
-  useEffect(() => {
-    console.log('frameCapture: ', frameCapture);
-    console.log('webcamref: ', webcamRef.current);
-    if (webCamState && frameCapture && webcamRef.current) {
-      frameCaptureInterval.current = setInterval(() => {
-        if (webcamRef.current){
-          console.log('webcamref: in interval', webcamRef);
-          handleOnCapture(webcamRef.current);
-        }
-      }, 1000);
-    }
-    return () => {
-      if (frameCaptureInterval.current) {
-        clearInterval(frameCaptureInterval.current);
+  // Listen for messages from the background script
+  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message.message !== undefined) {
+      if (message.message === 'frameCaptureState') {
+        setOutputArray(message.results);
       }
-    };
-  }, [webCamState, frameCapture, webcamRef]);
-
-  const handleOnCapture = (currWebCam: Webcam) => {
-    if (currWebCam) {
-      const capturedImageSrc = currWebCam.getScreenshot({width: 150, height: 150});
-
-      const image = new Image();
-      if (capturedImageSrc != null){
-        image.src = capturedImageSrc;
-
-        image.onload = async () => {
-          // PRE PROCESS
-          const canvas = document.createElement('canvas');
-          const context = canvas.getContext('2d');
-
-          if (context) {
-            canvas.width = IMG_WIDTH;
-            canvas.height = IMG_HEIGHT;
-
-            context.drawImage(image, 0, 0, IMG_WIDTH, IMG_HEIGHT);
-
-            // console.log(canvas.toDataURL());
-            setImageSrc(canvas.toDataURL());
-            
-            // Convert base64 image to tensor
-
-            const imageData = context.getImageData(0, 0, IMG_WIDTH, IMG_HEIGHT);
-            const pixels = imageData.data;
-
-            const red = [];
-            const green = [];
-            const blue = [];
-            for( let i = 0; i < pixels.length; i += 4 ) {
-              red.push(pixels[i]/255.0);
-              green.push(pixels[i+1]/255.0);
-              blue.push(pixels[i+2]/255.0);
-            }
-
-            const input = [...red, ...green, ...blue];
-            // END PRE PROCESS
-
-            // CREATE AND RUN MODEL
-            const model = await ort.InferenceSession.create('./yolov8n.onnx', { 
-              executionProviders: ['wasm'], 
-              graphOptimizationLevel: 'all'
-            });
-
-            const model_input = new ort.Tensor(Float32Array.from(input), [1, 3, IMG_WIDTH, IMG_HEIGHT]);
-            const model_output = await model.run({images: model_input});
-            const output = model_output["output0"].data;
-            // END CREATE AND RUN MODEL
-            
-            // POST PROCESS
-            let results: any[] = [];
-            for ( let i = 0; i < OUTPUT_TENSOR_SIZE; i++ ) {
-              const [class_id, prob] = [...Array(NUM_CLASSES).keys()]
-                    .map(col => [col, output[OUTPUT_TENSOR_SIZE*(col+4)+i]])
-                    .reduce((accum, item) => item[1]>accum[1] ? item : accum,[0,0]);
-              
-              if ( Number(prob) < 0.5 ) {
-                continue;
-              }
-              const label = yolo_classes[ Number(class_id) ];
-              results.push([label, prob])
-            }
-
-            results = results.sort((res1, res2) => res2[1]-res1[1]) // sort by prob
-            console.log(results) // if no objects are detected, result.length == 0
-            setOutputArray(results)
-            // END POST PROCESS
-          }
-        };
-      }
-    } else {
-      console.error('Webcam reference not available');
-      // Add appropriate error handling or user feedback here
     }
-  };
+  });
 
   return (
     <div className="mx-auto max-w-lg p-6 bg-gray-100 rounded-lg shadow-md">
+      <h1 className="text-3xl font-semibold text-center mb-6">Gesture Recognition</h1>
+      <button 
+        className="block w-full py-2.5 px-5 mb-4 text-center text-gray-900 bg-gray-200 border border-gray-800 rounded-lg hover:bg-gray-900 hover:text-white focus:outline-none focus:ring-4 focus:ring-gray-300 font-medium"
+        onClick={() => {
+          if(webCamState){
+            setWebCamState(false);
+          }
+          else {
+            setWebCamState(true);
+          }
+          chrome.runtime.sendMessage({ message: 'webCamState', webCamState: !webCamState });
+        }}>
+        {webCamState ? 'Stop' : 'Start'} Webcam
+      </button>
+      <div className="flex items-center justify-center">
+        {webCamState && <div className="mx-auto"><RenderWebcam webcamRef={webcamRef} /></div>}
+      </div>
+      {outputArray && (
+        <div className="mt-4">
+          <p>Highest Confidence Object Detected Class: {outputArray[0]}</p>
+        </div>
+      )}
+      <ActionAPIMapper
+        initMapping={mappings}
+        APIactions={APIactions}
+      />
     <h1 className="text-3xl font-semibold text-center mb-6">Welcome to the Gesture App</h1>
     <button 
       className="block w-full py-2.5 px-5 mb-4 text-center text-gray-900 bg-gray-200 border border-gray-800 rounded-lg hover:bg-gray-900 hover:text-white focus:outline-none focus:ring-4 focus:ring-gray-300 font-medium"
@@ -344,8 +264,8 @@ function RenderWebcam(props: { webcamRef: RefObject<Webcam> }) {
     <div>
       <Webcam
         audio={false}
-        minScreenshotHeight={150}
-        minScreenshotWidth={150}
+        minScreenshotHeight={IMG_HEIGHT}
+        minScreenshotWidth={IMG_WIDTH}
         screenshotFormat="image/jpeg"
         videoConstraints={videoConstraints}
         ref={props.webcamRef}
@@ -353,6 +273,54 @@ function RenderWebcam(props: { webcamRef: RefObject<Webcam> }) {
     </div>
   );
 }
+
+const ActionAPIMapper = ({ initMapping, APIactions }: any) => {
+  const [mapping, setMapping] = useState(initMapping);
+
+  useEffect(() => {
+    chrome.runtime.sendMessage({ message: 'useEffect'}, function(response) {
+      if (response && response.mappings !== undefined) {
+        console.log('Mappings:', response.mappings);
+        setMapping(response.mappings);
+      }
+    });
+  }, []);
+
+  const handleMappingChange = (action: any, api: any) => {
+    chrome.runtime.sendMessage({ message: 'updateMapping', action, api });
+    setMapping((prevMapping: any) => ({
+      ...prevMapping,
+      [action]: api,
+    }));
+  };
+
+  return (
+    <div>
+      <h2>Actions to APIs Mapper</h2>
+      <div>
+        {Object.entries(mapping).map(([action, api]) => (
+          <div key={action}>
+            <label htmlFor={action}>{action}</label>
+            <select
+              id={action}
+              value={String(api)}
+              onChange={(e) => handleMappingChange(action, e.target.value)}
+            >
+              <option value="">Select API</option>
+              {APIactions.map((apiAction: any) => (
+                <option key={apiAction} value={apiAction}>{apiAction}</option>
+              ))}
+            </select>
+          </div>
+        ))}
+      </div>
+      <div>
+        <h3>Current Mapping</h3>
+        <pre>{JSON.stringify(mapping, null, 2)}</pre>
+      </div>
+    </div>
+  );
+};
 
 let creating: (Promise<void>) | null; // A global promise to avoid concurrency issues
 async function setupOffscreenDocument(path: string) {
