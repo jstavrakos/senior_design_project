@@ -209,12 +209,12 @@ export default function App() {
     <div className="flex justify-between">
       <button 
         className="text-blue-700 hover:text-white border border-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center mb-2 dark:border-blue-500 dark:text-blue-500 dark:hover:text-white dark:hover:bg-blue-500 dark:focus:ring-blue-800"
-        onClick={changeTabLeft}>
+        onClick={() => perform_action(0)}>
         Left
       </button>
       <button 
         className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
-        onClick={changeTabRight}>
+        onClick={() => perform_action(1)}>
         Right
       </button>
     </div>
@@ -269,6 +269,71 @@ function changeTabRight() {
       const newIndex = (currentIndex + 1) % tabs.length;
       if (tabs[newIndex].id !== undefined) {
         chrome.tabs.update(tabs[newIndex].id!, { active: true });
+      }
+    });
+  });
+}
+
+function perform_action(action: number) {
+  chrome.tabs.query({ currentWindow: true }, (tabs) => {
+    chrome.tabs.query({ active: true, currentWindow: true }, (currentTab) => {
+      const currentIndex = tabs.findIndex((tab) => tab.id === currentTab[0].id);
+
+      switch (action) {
+        case 0: { // switch tab left
+          const newIndex = (currentIndex - 1 + tabs.length) % tabs.length;
+          if (tabs[newIndex].id !== undefined) {
+            chrome.tabs.update(tabs[newIndex].id!, { active: true });
+          }
+          break; 
+        }
+        case 1: { // switch tab right
+          const newIndex = (currentIndex + 1) % tabs.length;
+          if (tabs[newIndex].id !== undefined) {
+            chrome.tabs.update(tabs[newIndex].id!, { active: true });
+          } 
+          break; 
+        }
+        case 2: { // go backwards in tab history
+          if (tabs[currentIndex].id !== undefined) {
+            chrome.tabs.goBack(tabs[currentIndex].id!);
+          }
+          break; 
+        }
+        case 3: { // go forwards in tab history
+          if (tabs[currentIndex].id !== undefined) {
+            chrome.tabs.goForward(tabs[currentIndex].id!);
+          }
+          break; 
+        }
+        case 4: { // refresh tab
+          if (tabs[currentIndex].id !== undefined) {
+            chrome.tabs.reload(tabs[currentIndex].id!);
+          }
+          break
+        }
+        case 5: { // toggle tab mute status
+          if (tabs[currentIndex].id !== undefined) {
+            if (tabs[currentIndex].mutedInfo!.muted) {
+              chrome.tabs.update(tabs[currentIndex].id!, { muted: false });
+            } else {
+              chrome.tabs.update(tabs[currentIndex].id!, { muted: true });
+            }
+          }
+          break; 
+        }
+        case 6: { // create new tab
+          chrome.tabs.create({ active : true });
+          break; 
+        }
+        case 7: { // remove current tab
+          const newIndex = (currentIndex + 1) % tabs.length;
+          if (tabs[newIndex].id !== undefined) {
+            chrome.tabs.update(tabs[newIndex].id!, { active: true });
+            chrome.tabs.remove(tabs[currentIndex].id!); 
+          }
+          break; 
+        }
       }
     });
   });
