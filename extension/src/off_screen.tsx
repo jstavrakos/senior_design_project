@@ -32,6 +32,9 @@ var popupWindow: boolean = false;
 // Mapping for the inferece events
 var mapping: any = {1 : '', 2: '', 3: '', 4: '', 5: ''};
 
+// mapping for the custom link
+var customLink: string = ""; 
+
 // Load the model when the off-screen script is loaded
 loadModel();
 // Define variables to keep track of the last result and its repeat count
@@ -68,7 +71,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 
                 // Only send the message if the result is stable
                 if (repeatCount >= repeatThreshold) {
-                  chrome.runtime.sendMessage({ message: 'apiActions', action: parseMap(mapping[results[0][0]]) });
+                  chrome.runtime.sendMessage({ message: 'apiActions', action: parseMap(mapping[results[0][0]]), link: customLink });
                   repeatCount = 0;
                 }
                 
@@ -92,6 +95,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
     if (message.message === 'updateMapping') {
       mapping[message.action] = message.api;
+    } else if (message.message === 'updateCustomLink') {
+      customLink = message.link; 
     }
   }
 });
@@ -237,6 +242,10 @@ function parseMap(action: string) : Number{
       return 6;
     case 'removeCurrentTab':
       return 7;
+    case 'openGmail': 
+      return 8; 
+    case 'openLink': 
+      return 9; 
     default:
       return -1;
   }

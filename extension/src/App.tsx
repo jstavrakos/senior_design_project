@@ -29,7 +29,7 @@ export default function App() {
   const [mappings, setMappings] = useState({1 : '', 2: '', 3: '', 4: '', 5: ''});
   const [outputArray, setOutputArray] = useState< number[]| null>(null);
   const webcamRef = createRef<Webcam>();
-  const APIactions = ['switchTabLeft', 'switchTabRight', 'goBack', 'goForward', 'refreshTab', 'toggleMute', 'createNewTab', 'removeCurrentTab'];
+  const APIactions = ['switchTabLeft', 'switchTabRight', 'goBack', 'goForward', 'refreshTab', 'toggleMute', 'createNewTab', 'removeCurrentTab', 'openGmail', 'openLink'];
 
   // Update the webcam state and frame capture state from the background script
   useEffect(() => {
@@ -87,6 +87,7 @@ export default function App() {
 
 const ActionAPIMapper = ({ initMapping, APIactions }: any) => {
   const [mapping, setMapping] = useState(initMapping);
+  var currentLink = ""; 
 
   useEffect(() => {
     chrome.runtime.sendMessage({ message: 'useEffect'}, function(response) {
@@ -105,6 +106,16 @@ const ActionAPIMapper = ({ initMapping, APIactions }: any) => {
     }));
   };
 
+  const handleCustomLink = (link: string) => {
+    chrome.runtime.sendMessage({ message: "updateCustomLink", link });
+  }
+
+  const handleFormSubmit = (e: any) => {
+    e.preventDefault(); 
+    currentLink = e.target.customLink.value; 
+    handleCustomLink(currentLink); 
+  }
+  
   return (
     <div className="p-4 bg-gray-100 rounded-lg shadow-inner mt-4">
       <h2 className="text-xl font-semibold mb-3">Actions to APIs Mapper</h2>
@@ -126,6 +137,12 @@ const ActionAPIMapper = ({ initMapping, APIactions }: any) => {
           </div>
         ))}
       </div>
+      <form onSubmit={handleFormSubmit}>
+        <label htmlFor='customLink' className='block text-sm font-medium text-gray-700'>
+          openLink custom link: 
+          <input type="text" name='customLink' defaultValue={currentLink} />
+        </label>
+      </form>
     </div>
   );
 };
