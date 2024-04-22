@@ -29,7 +29,7 @@ export default function App() {
   const [mappings, setMappings] = useState({1 : '', 2: '', 3: '', 4: '', 5: ''});
   const [outputArray, setOutputArray] = useState< number[]| null>(null);
   const webcamRef = createRef<Webcam>();
-  const APIactions = ['1', '2', '3', '4', '5'];
+  const APIactions = ['0', '1', '2', '3', '4', '5', '6', '7'];
 
   // Update the webcam state and frame capture state from the background script
   useEffect(() => {
