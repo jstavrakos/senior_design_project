@@ -34,60 +34,68 @@ var mapping: any = {1 : '', 2: '', 3: '', 4: '', 5: ''};
 
 // Load the model when the off-screen script is loaded
 loadModel();
+// Define variables to keep track of the last result and its repeat count
+let lastResult: any = null;
+let repeatCount = 0;
+const repeatThreshold = 5;  // Set this to the number of consecutive matches required
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  // Check if the message is from app.js
   console.log('off_screen.ts message: ', message);
   if (message.message !== undefined) {
-    // Check if the message contains the webcamState property
-    if((message.message === ('useEffect'))){
-      popupWindow = true;
-
-      const response = {webCamState: webCamState, mappings: mapping};
+    if (message.message === 'useEffect') {
+      const response = { webCamState: webCamState, mappings: mapping };
       sendResponse(response);
     }
-    if (message.message === ('webCamState')) {
+    
+    if (message.message === 'webCamState') {
       webCamState = message.webCamState;
-      // setWebCamState(webCamState);
-      if (webCamState === true) {
-        // Start the webcam
+      if (webCamState) {
         startWebcam();
         console.log('webcam started');
         frameCaptureInterval = setInterval(() => {
-          if(videoElement != null && MODEL != null){
+          if (videoElement && MODEL) {
             handleOnCapture().then((results) => {
-              
-              let response = {message : 'frameCaptureState', results: null};
-              response.results = results;
-              if(results != null && results.length != 0) {
-                // console.log("mapping resul: ", mapping[results[0][0]]);
-                chrome.runtime.sendMessage({message: 'apiActions', action: parseMap(mapping[results[0][0]])});
-                if(popupWindow){
-                  chrome.runtime.sendMessage(response)
-                  .catch((error) => {
+              let response = { message: 'frameCaptureState', results: null };
+              if (results && results.length !== 0) {
+                response.results = results;
+                // Check if the current result matches the last result
+                if (results[0][0] === lastResult) {
+                  repeatCount++;
+                } else {
+                  repeatCount = 1;
+                  lastResult = results[0][0];
+                }
+                
+                // Only send the message if the result is stable
+                if (repeatCount >= repeatThreshold) {
+                  chrome.runtime.sendMessage({ message: 'apiActions', action: parseMap(mapping[results[0][0]]) });
+                  repeatCount = 0;
+                }
+                
+                if (popupWindow) {
+                  chrome.runtime.sendMessage(response).catch((error) => {
                     console.error(error);
                     popupWindow = false;
                   });
                 }
               }
-            })
-            .catch((error) => {
+            }).catch((error) => {
               console.error(error);
             });
           }
-          // console.log('mapping inside interval:', mapping);
         }, WEBCAM_INTERVAL);
       } else {
-        // Stop the webcam
         stopWebcam();
         clearInterval(frameCaptureInterval);
       }
     }
-    if (message.message === ('updateMapping')) {
+
+    if (message.message === 'updateMapping') {
       mapping[message.action] = message.api;
     }
   }
 });
+
 
 let videoElement: HTMLVideoElement | null = null;
 let stream: MediaStream | null = null;

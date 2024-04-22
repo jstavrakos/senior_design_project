@@ -76,9 +76,6 @@ export default function App() {
         <div className="flex justify-center">
           <Webcam ref={webcamRef} audio={false} videoConstraints={videoConstraints} className="rounded-lg" />
         </div>}
-        {outputArray && (
-          <p className='mt-4 text-center'>Highest Confidence Object Detected Class: {outputArray[0]}</p>
-        )}
       </div>
       <ActionAPIMapper
         initMapping={mappings}
