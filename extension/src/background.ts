@@ -7,7 +7,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.message === "apiActions" && request.action !== undefined) {
         perform_action(request.action);
     }
-    return true;
 });
 
 function perform_action(action: number) {
