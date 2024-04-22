@@ -1,0 +1,27 @@
+name: test-model-accuracy
+
+on:
+  push:
+    branches: [ main, jack ]
+
+jobs:
+  unit-test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v2
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.8'
+
+      - name: Pip Installs
+        run: |
+          python -m pip install opencv-python
+          python -m pip install torch
+          python -m pip install onnxruntime
+
+      - name: Run Script
+        run: python extension/test/test.py
