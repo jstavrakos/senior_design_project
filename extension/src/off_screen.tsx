@@ -1,6 +1,4 @@
-import { get } from 'http';
 import * as ort from 'onnxruntime-web';
-import { useState } from 'react';
 
 // Global variable and function for the model which will only be loaded once
 let MODEL: ort.InferenceSession;
@@ -31,12 +29,11 @@ ort.env.wasm.numThreads = 1;
 var frameCaptureInterval: any = null;
 var popupWindow: boolean = false;
 
-// Load the model when the off-screen script is loaded
-loadModel();
-
 // Mapping for the inferece events
 var mapping: any = {1 : '', 2: '', 3: '', 4: '', 5: ''};
-// let [mapping, setMapping] = useState({});
+
+// Load the model when the off-screen script is loaded
+loadModel();
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   // Check if the message is from app.js
@@ -57,23 +54,27 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         startWebcam();
         console.log('webcam started');
         frameCaptureInterval = setInterval(() => {
-          handleOnCapture().then((results) => {
-            
-            let response = {message : 'frameCaptureState', results: null};
-            response.results = results;
-            if(results.length != 0) {
-              console.log("mapping resul: ", mapping[results[0][0]]);
-              // perform_action(parseInt(mapping[results[0][0]]));
-              chrome.runtime.sendMessage({message: 'apiActions', action: parseInt(mapping[results[0][0]])});
-            }
-            if(popupWindow){
-              chrome.runtime.sendMessage(response)
-              .catch((error) => {
-                console.error(error);
-                popupWindow = false;
-              });
-            }
-          });
+          if(videoElement != null && MODEL != null){
+            handleOnCapture().then((results) => {
+              
+              let response = {message : 'frameCaptureState', results: null};
+              response.results = results;
+              if(results != null && results.length != 0) {
+                // console.log("mapping resul: ", mapping[results[0][0]]);
+                chrome.runtime.sendMessage({message: 'apiActions', action: parseMap(mapping[results[0][0]])});
+                if(popupWindow){
+                  chrome.runtime.sendMessage(response)
+                  .catch((error) => {
+                    console.error(error);
+                    popupWindow = false;
+                  });
+                }
+              }
+            })
+            .catch((error) => {
+              console.error(error);
+            });
+          }
           // console.log('mapping inside interval:', mapping);
         }, WEBCAM_INTERVAL);
       } else {
@@ -147,71 +148,88 @@ function loadModel() {
 }
 
 async function handleOnCapture (): Promise<any> {
-  if (videoElement && MODEL) {
+  const image = new Image();
+  if (videoElement){
+    // Load the webcam image from our canvas to process
+    const canvas = document.createElement('canvas');
+    const context = canvas.getContext('2d');
 
-    const image = new Image();
-    if (videoElement){
-      // Load the webcam image from our canvas to process
-      const canvas = document.createElement('canvas');
-      const context = canvas.getContext('2d');
-
-      if (context) {
-        canvas.width = IMG_WIDTH;
-        canvas.height = IMG_HEIGHT;
-        context.drawImage(videoElement, 0, 0, IMG_WIDTH, IMG_HEIGHT);
-        
-        // PRE PROCESS
-        //console.time('pass through model')
-        const imageData = context.getImageData(0, 0, IMG_WIDTH, IMG_HEIGHT);
-        const pixels = imageData.data;
-        
-        // Convert base64 image to RGB tensor for the model
-        const red: number[] = [];
-        const green: number[] = [];
-        const blue: number[] = [];
-        for( let i = 0; i < pixels.length; i += 4 ) {
-          red.push(pixels[i] / 255.0);
-          green.push(pixels[i+1] / 255.0);
-          blue.push(pixels[i+2] / 255.0);
-        }
-
-        const input = [...red, ...green, ...blue];
-        // END PRE PROCESS
-
-        // RUN MODEL - model was already created once when the webcam was started
-        const model_input = new ort.Tensor(Float32Array.from(input), [1, 3, IMG_WIDTH, IMG_HEIGHT]);
-        const model_output = await MODEL.run({images: model_input});
-        const output = model_output["output0"].data;
-        // END RUN MODEL
-        
-        // POST PROCESS
-        let highest_probabilities: { [key: string]: number } = {};
-        for ( let i = 0; i < OUTPUT_TENSOR_SIZE; i++ ) {
-          const [class_id, prob] = [...Array(NUM_CLASSES).keys()]
-                .map(col => [col, output[OUTPUT_TENSOR_SIZE*(col+4)+i]])
-                .reduce((accum, item) => item[1]>accum[1] ? item : accum,[0,0]);
-          
-          if ( Number(prob) < CONFIDENCE_BOUND ) {
-            continue;
-          }
-          const label = yolo_classes[ Number(class_id) ];
-          // only return the highest confidence detection for each class
-          if( !(label in highest_probabilities) || Number(prob) > highest_probabilities[label] ) {
-            highest_probabilities[label] = Number(prob);
-          }
-        }
-
-        let results: any[] = Object.entries(highest_probabilities);
-        results = results.sort((res1, res2) => res2[1]-res1[1]) // sort by probability
-        //console.timeEnd('pass through model')
-        console.log(results) // if no objects are detected, result.length == 0
-        return results;
-        // END POST PROCESS
+    if (context) {
+      canvas.width = IMG_WIDTH;
+      canvas.height = IMG_HEIGHT;
+      context.drawImage(videoElement, 0, 0, IMG_WIDTH, IMG_HEIGHT);
+      
+      // PRE PROCESS
+      //console.time('pass through model')
+      const imageData = context.getImageData(0, 0, IMG_WIDTH, IMG_HEIGHT);
+      const pixels = imageData.data;
+      
+      // Convert base64 image to RGB tensor for the model
+      const red: number[] = [];
+      const green: number[] = [];
+      const blue: number[] = [];
+      for( let i = 0; i < pixels.length; i += 4 ) {
+        red.push(pixels[i] / 255.0);
+        green.push(pixels[i+1] / 255.0);
+        blue.push(pixels[i+2] / 255.0);
       }
+
+      const input = [...red, ...green, ...blue];
+      // END PRE PROCESS
+
+      // RUN MODEL - model was already created once when the webcam was started
+      const model_input = new ort.Tensor(Float32Array.from(input), [1, 3, IMG_WIDTH, IMG_HEIGHT]);
+      const model_output = await MODEL.run({images: model_input});
+      const output = model_output["output0"].data;
+      // END RUN MODEL
+      
+      // POST PROCESS
+      let highest_probabilities: { [key: string]: number } = {};
+      for ( let i = 0; i < OUTPUT_TENSOR_SIZE; i++ ) {
+        const [class_id, prob] = [...Array(NUM_CLASSES).keys()]
+              .map(col => [col, output[OUTPUT_TENSOR_SIZE*(col+4)+i]])
+              .reduce((accum, item) => item[1]>accum[1] ? item : accum,[0,0]);
+        
+        if ( Number(prob) < CONFIDENCE_BOUND ) {
+          continue;
+        }
+        const label = yolo_classes[ Number(class_id) ];
+        // only return the highest confidence detection for each class
+        if( !(label in highest_probabilities) || Number(prob) > highest_probabilities[label] ) {
+          highest_probabilities[label] = Number(prob);
+        }
+      }
+
+      let results: any[] = Object.entries(highest_probabilities);
+      results = results.sort((res1, res2) => res2[1]-res1[1]) // sort by probability
+      //console.timeEnd('pass through model')
+      console.log(results) // if no objects are detected, result.length == 0
+      return results;
+      // END POST PROCESS
     }
-  } else {
-    console.error('Webcam reference not available');
-    // Add appropriate error handling or user feedback here
   }
+  
 };
 
+function parseMap(action: string) : Number{
+  switch(action){
+    case 'switchTabLeft':
+      return 0;
+    case 'switchTabRight':
+      return 1;
+    case 'goBack':
+      return 2;
+    case 'goForward':
+      return 3;
+    case 'refreshTab':
+      return 4;
+    case 'toggleMute':
+      return 5;
+    case 'createNewTab':
+      return 6;
+    case 'removeCurrentTab':
+      return 7;
+    default:
+      return -1;
+  }
+}

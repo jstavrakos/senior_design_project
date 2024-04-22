@@ -1,4 +1,4 @@
-import { useState, useEffect, RefObject, createRef, JSXElementConstructor, Key, ReactElement, ReactNode } from 'react';
+import { useState, useEffect, RefObject, createRef } from 'react';
 import Webcam from "react-webcam";
 
 // Interface for video constraints with type safety
@@ -29,7 +29,7 @@ export default function App() {
   const [mappings, setMappings] = useState({1 : '', 2: '', 3: '', 4: '', 5: ''});
   const [outputArray, setOutputArray] = useState< number[]| null>(null);
   const webcamRef = createRef<Webcam>();
-  const APIactions = ['0', '1', '2', '3', '4', '5', '6', '7'];
+  const APIactions = ['switchTabLeft', 'switchTabRight', 'goBack', 'goForward', 'refreshTab', 'toggleMute', 'createNewTab', 'removeCurrentTab'];
 
   // Update the webcam state and frame capture state from the background script
   useEffect(() => {
@@ -134,17 +134,13 @@ const ActionAPIMapper = ({ initMapping, APIactions }: any) => {
               value={String(api)}
               onChange={(e) => handleMappingChange(action, e.target.value)}
             >
-              <option value="">Select API</option>
+              <option value="">Select action</option>
               {APIactions.map((apiAction: any) => (
                 <option key={apiAction} value={apiAction}>{apiAction}</option>
               ))}
             </select>
           </div>
         ))}
-      </div>
-      <div>
-        <h3>Current Mapping</h3>
-        <pre>{JSON.stringify(mapping, null, 2)}</pre>
       </div>
     </div>
   );
