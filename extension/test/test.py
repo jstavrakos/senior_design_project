@@ -35,12 +35,12 @@ def postprocess(output, yolo_classes):
         return sorted_keys
 
 yolo_classes = ['one', 'two', 'three', 'four', 'five']
-onnx_path = 'src/custom.onnx'
+onnx_path = 'extension/src/custom.onnx' #src/custom/onnx
 ort_session = ort.InferenceSession(onnx_path)
 answer_key = ['four', 'two', 'two', 'three', 'one', 'four', 'three', 'one', 'five', 'five']
 
 for i in range(1, 11):
-    image_path = f"test/test_images/test_img_{i}.jpeg"
+    image_path = f"extension/test/test_images/test_img_{i}.jpeg"
     image_data = preprocess(image_path)
     outputs = ort_session.run(None, {'images': image_data.astype(np.float32)})
     detections = postprocess(outputs, yolo_classes)
