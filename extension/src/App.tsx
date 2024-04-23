@@ -1,4 +1,4 @@
-import { useState, useEffect, RefObject, createRef } from 'react';
+import { useState, useEffect, RefObject, createRef, useRef } from 'react';
 import Webcam from "react-webcam";
 
 // Interface for video constraints with type safety
@@ -27,34 +27,48 @@ const videoConstraints: VideoConstraints = {
 export default function App() {
   const [webCamState, setWebCamState] = useState(false);
   const [mappings, setMappings] = useState({1 : '', 2: '', 3: '', 4: '', 5: ''});
-  const [outputArray, setOutputArray] = useState< number[]| null>(null);
   const webcamRef = createRef<Webcam>();
   const APIactions = ['switchTabLeft', 'switchTabRight', 'goBack', 'goForward', 'refreshTab', 'toggleMute', 'createNewTab', 'removeCurrentTab'];
 
   // Update the webcam state and frame capture state from the background script
+  const retryCountRef = useRef(0); // Use a ref to keep track of retry count
+  const maxRetries = 3; // Maximum number of retries
+  const retryDelay = 2000; // Delay between retries in milliseconds
+
   useEffect(() => {
-    setupOffscreenDocument('off_screen.html');
-    chrome.runtime.sendMessage({ message: 'useEffect'}, function(response) {
-      console.log('Response from off_screen.js:', response);
-      if (response && response.webCamState !== undefined) {
-        setWebCamState(response.webCamState);
-      }
-      if (response && response.mappings !== undefined) {
-        console.log('Mappings:', response.mappings);
-        setMappings(response.mappings);
-      }
-    });
-  }, []);
+    function sendMessage() {
+      setupOffscreenDocument('off_screen.html');
+      chrome.runtime.sendMessage({ message: 'useEffect'}, function(response) {
+        if (chrome.runtime.lastError) {
+          if (retryCountRef.current < maxRetries) {
+            console.log(`Retrying message... Attempt ${retryCountRef.current + 1}`);
+            setTimeout(sendMessage, retryDelay);
+            retryCountRef.current += 1;
+          } else {
+            console.error("Failed to send message after retries:", chrome.runtime.lastError);
+          }
+          return;
+        }
 
-  // Listen for messages from the background script
-  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    if (message.message !== undefined) {
-      if (message.message === 'frameCaptureState') {
-        setOutputArray(message.results);
-      }
+        retryCountRef.current = 0; // Reset retry count on successful communication
+        if (response) {
+          console.log('Response from off_screen.js:', response);
+          if (response.webCamState !== undefined) {
+            setWebCamState(response.webCamState);
+          }
+          if (response.mappings !== undefined) {
+            setMappings(response.mappings);
+          }
+        }
+      });
     }
-  });
 
+    sendMessage(); // Initial call to the function
+
+    return () => {
+      retryCountRef.current = 0; // Reset on component unmount
+    };
+  }, []);
   const toggleWebCam = () => {
     const newWebCamState = !webCamState;
     setWebCamState(newWebCamState);
@@ -88,15 +102,38 @@ export default function App() {
 const ActionAPIMapper = ({ initMapping, APIactions }: any) => {
   const [mapping, setMapping] = useState(initMapping);
 
-  useEffect(() => {
-    chrome.runtime.sendMessage({ message: 'useEffect'}, function(response) {
+  const fetchRetryCountRef = useRef(0); // Ref to track retry counts for fetching
+  const maxFetchRetries = 3; // Maximum number of retries for fetching mappings
+  const fetchRetryDelay = 2000; // Delay between retries in milliseconds for fetching
+
+  // Function to fetch mappings with retry
+  const fetchMappings = () => {
+    chrome.runtime.sendMessage({ message: 'useEffect' }, function (response) {
+      if (chrome.runtime.lastError) {
+        if (fetchRetryCountRef.current < maxFetchRetries) {
+          console.log(`Retrying fetch... Attempt ${fetchRetryCountRef.current + 1}`);
+          setTimeout(fetchMappings, fetchRetryDelay);
+          fetchRetryCountRef.current += 1;
+        } else {
+          console.error("Failed to fetch mappings after retries:", chrome.runtime.lastError);
+        }
+        return;
+      }
+
+      fetchRetryCountRef.current = 0; // Reset retry count on success
       if (response && response.mappings !== undefined) {
         console.log('Mappings:', response.mappings);
         setMapping(response.mappings);
       }
     });
-  }, []);
+  };
 
+  useEffect(() => {
+    fetchMappings(); // Initial call to fetch mappings
+    return () => {
+      fetchRetryCountRef.current = 0; // Clean up on unmount
+    };
+  }, []);
   const handleMappingChange = (action: any, api: any) => {
     chrome.runtime.sendMessage({ message: 'updateMapping', action, api });
     setMapping((prevMapping: any) => ({
