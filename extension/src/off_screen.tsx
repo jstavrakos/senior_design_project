@@ -49,7 +49,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   console.log('off_screen.ts message: ', message);
   if (message.message !== undefined) {
     if (message.message === 'useEffect') {
-      const response = { webCamState: webCamState, mappings: mapping };
+      const response = { webCamState: webCamState, mappings: mapping, link: customLink };
       sendResponse(response);
     }
     

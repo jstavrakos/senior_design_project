@@ -30,6 +30,8 @@ export default function App() {
   const webcamRef = createRef<Webcam>();
   const APIactions = ['switchTabLeft', 'switchTabRight', 'goBack', 'goForward', 'refreshTab', 'toggleMute', 'createNewTab', 'removeCurrentTab', 'openGmail', 'openLink'];
 
+  const [inputLink, setInputLink] = useState(""); 
+  
   // Update the webcam state and frame capture state from the background script
   const retryCountRef = useRef(0); // Use a ref to keep track of retry count
   const maxRetries = 3; // Maximum number of retries
@@ -58,6 +60,9 @@ export default function App() {
           }
           if (response.mappings !== undefined) {
             setMappings(response.mappings);
+          }
+          if (response.link !== undefined) {
+            setInputLink(response.link); 
           }
         }
       });
@@ -94,14 +99,17 @@ export default function App() {
       <ActionAPIMapper
         initMapping={mappings}
         APIactions={APIactions}
+        link={inputLink}
       />
   </div>  
   );
 };
 
-const ActionAPIMapper = ({ initMapping, APIactions }: any) => {
+const ActionAPIMapper = ({ initMapping, APIactions }: any, link: string) => {
   const [mapping, setMapping] = useState(initMapping);
-  var currentLink = ""; 
+
+  // ***
+  const [inputLink, setInputLink] = useState(link);
 
   const fetchRetryCountRef = useRef(0); // Ref to track retry counts for fetching
   const maxFetchRetries = 3; // Maximum number of retries for fetching mappings
@@ -126,6 +134,9 @@ const ActionAPIMapper = ({ initMapping, APIactions }: any) => {
         console.log('Mappings:', response.mappings);
         setMapping(response.mappings);
       }
+      if (response && response.link !== undefined) {
+        setInputLink(response.link); 
+      }
     });
   };
 
@@ -143,15 +154,13 @@ const ActionAPIMapper = ({ initMapping, APIactions }: any) => {
     }));
   };
 
-  const handleCustomLink = (link: string) => {
-    chrome.runtime.sendMessage({ message: "updateCustomLink", link });
+  const handleCustomLink = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setInputLink(e.target.value);
   }
 
   const handleFormSubmit = (e: any) => {
     e.preventDefault(); 
-    currentLink = e.target.customLink.value; 
-    handleCustomLink(currentLink); 
-    console.log(currentLink); 
+    chrome.runtime.sendMessage({ message: 'updateCustomLink', link: inputLink })
   }
   
   return (
@@ -178,7 +187,12 @@ const ActionAPIMapper = ({ initMapping, APIactions }: any) => {
       <form onSubmit={handleFormSubmit}>
         <label htmlFor='customLink' className='block text-sm font-medium text-gray-700'>
           openLink custom link: 
-          <input type="text" name='customLink' defaultValue={currentLink} />
+          <input 
+            type="text" 
+            name='customLink' 
+            value={inputLink}
+            onChange={handleCustomLink}
+          />
         </label>
       </form>
     </div>
