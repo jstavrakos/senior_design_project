@@ -114,6 +114,7 @@ const ActionAPIMapper = ({ initMapping, APIactions }: any) => {
     e.preventDefault(); 
     currentLink = e.target.customLink.value; 
     handleCustomLink(currentLink); 
+    console.log(currentLink); 
   }
   
   return (
