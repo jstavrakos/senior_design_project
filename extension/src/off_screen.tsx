@@ -1,4 +1,5 @@
 import * as ort from 'onnxruntime-web';
+import { parse } from 'path';
 
 // Global variable and function for the model which will only be loaded once
 let MODEL: ort.InferenceSession;
@@ -27,7 +28,6 @@ const yolo_classes = [
 ort.env.wasm.numThreads = 1;
 
 var frameCaptureInterval: any = null;
-var popupWindow: boolean = false;
 
 // Mapping for the inferece events
 var mapping: any = {1 : '', 2: '', 3: '', 4: '', 5: ''};
@@ -38,9 +38,12 @@ var customLink: string = "";
 // Load the model when the off-screen script is loaded
 loadModel();
 // Define variables to keep track of the last result and its repeat count
+let lastInferredResult: any = null;
 let lastResult: any = null;
 let repeatCount = 0;
-const repeatThreshold = 5;  // Set this to the number of consecutive matches required
+const repeatThreshold = 1;  // Set this to the number of consecutive matches required
+
+let parsedResult: any = null;
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   console.log('off_screen.ts message: ', message);
@@ -58,29 +61,26 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         frameCaptureInterval = setInterval(() => {
           if (videoElement && MODEL) {
             handleOnCapture().then((results) => {
-              let response = { message: 'frameCaptureState', results: null };
               if (results && results.length !== 0) {
-                response.results = results;
-                // Check if the current result matches the last result
-                if (results[0][0] === lastResult) {
-                  repeatCount++;
-                } else {
-                  repeatCount = 1;
-                  lastResult = results[0][0];
-                }
-                
-                // Only send the message if the result is stable
-                if (repeatCount >= repeatThreshold) {
-                  chrome.runtime.sendMessage({ message: 'apiActions', action: parseMap(mapping[results[0][0]]), link: customLink });
-                  repeatCount = 0;
-                }
-                
-                if (popupWindow) {
-                  chrome.runtime.sendMessage(response).catch((error) => {
-                    console.error(error);
-                    popupWindow = false;
-                  });
-                }
+                parsedResult = results[0][0];
+              }
+              else {
+                parsedResult = null;
+              }
+              // Check if the current result matches the last result
+              if (parsedResult === lastResult) {
+                repeatCount++;
+              } else {
+                repeatCount = 1;
+                lastResult = parsedResult;
+                lastInferredResult = null;
+              }
+              
+              // Only send the message if the result is stable
+              if (repeatCount >= repeatThreshold && lastInferredResult !== parsedResult) {
+                lastInferredResult = parsedResult;
+                chrome.runtime.sendMessage({ message: 'apiActions', action: parseMap(mapping[results[0][0]]) });
+                repeatCount = 0;
               }
             }).catch((error) => {
               console.error(error);
