@@ -33,5 +33,21 @@ Select the 'dist' folder created in the previous step. The extension will now be
 ### 5. Run Tests
 Refer to `user_manual.md` for the currently supported actions. Additional information can be seen using Chrome Developer Tools. If you add any additional code that you would like to test, repeat steps 3-5.
 
+## Adding Custom API Calls
+Our extension can easily integrate with any APIs. For general purpose, we currently make calls to the Chrome API, however, you can make local changes to create custom actions. Follow the directions below.
+
+### 1. Implement Your API call
+Navigate to ```extension/src/background.ts```. Currently, our API calls are defined in `perform_action`. 
+
+Create another case in the switch statement. Your API call (or sequence of calls) should be written within the case, followed by a break statement.
+
+### 2. Add the Case to Additional Files
+Navigate to ```extension/src/off_screen.tsx```. Add the action to the function `parseMap`
+
+Navigate to ```extension/src/App.tsx```. Add the action to the corresponding index in the variable `APIactions`.
+
+### 3. Test Your New Action
+Follow the steps above to build and test locally!
+
 ## Our Model
 For the final version of our product, we fine-tuned a YOLOv8n model to detect 5 hand symbols. This was done by collecting and labelling our own dataset. A link to this public dataset can be found [here](https://universe.roboflow.com/jstavrakos/manuswebcamutilitycustommodel).
