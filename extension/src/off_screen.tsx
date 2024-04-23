@@ -79,7 +79,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
               // Only send the message if the result is stable
               if (repeatCount >= repeatThreshold && lastInferredResult !== parsedResult) {
                 lastInferredResult = parsedResult;
-                chrome.runtime.sendMessage({ message: 'apiActions', action: parseMap(mapping[results[0][0]]) });
+                chrome.runtime.sendMessage({ message: 'apiActions', action: parseMap(mapping[results[0][0]]), link: customLink });
                 repeatCount = 0;
               }
             }).catch((error) => {
