@@ -11,7 +11,11 @@ The extension can be downloaded from the chrome extension store once it has been
 
 ## Usage
 ### Getting Started: 
-Once the extension is installed, it can be enabled by opening the extension popup by clicking on the extension icon. 
+Once the extension is installed, the extension must be given webcam privileges. 
+In the chrome extension manager, click on the details button for Manus. 
+Once inside scroll down and click "Site settings". 
+Then select "Camera" and chose "Allow". 
+In order to enable the extension, you must open the extension popup by clicking on the extension icon. 
 Then clicking on the button which says "begin inference" 
 Then Manus had utility will be active on the current window. 
 

@@ -5,11 +5,11 @@ chrome.runtime.onInstalled.addListener(() => {
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     // console.log("Message received", request);
     if (request.message === "apiActions" && request.action !== undefined) {
-        perform_action(request.action);
+        perform_action(request.action, request.link);
     }
 });
 
-function perform_action(action: number) {
+function perform_action(action: number, link: string) {
     chrome.tabs.query({ currentWindow: true }, (tabs) => {
       chrome.tabs.query({ active: true, currentWindow: true }, (currentTab) => {
         
@@ -71,6 +71,15 @@ function perform_action(action: number) {
               chrome.tabs.remove(tabs[currentIndex].id!); 
             }
             break; 
+          }
+          case 8: { // open gmail
+            chrome.tabs.create({ active : true, url: "https://mail.google.com/mail/u/0/#inbox" });
+            break; 
+          }
+          case 9: { // open link
+            console.log(link); 
+            chrome.tabs.create({ active : true, url: link });
+            break;
           }
         }
       });
